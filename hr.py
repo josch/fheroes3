@@ -22,9 +22,10 @@ from lib.mapset import *
 from lib.interface import *
 from lib.mapview import *
 from lib.window import Window
+import sys
 
 class LoadScreen(object):
-    def __init__(self, window):
+    def __init__(self, window, map_name):
         self.window = window
         self.label = pyglet.text.Label('',
                 font_name="Linux Libertine",
@@ -32,7 +33,7 @@ class LoadScreen(object):
                 x=self.window.width-10, y=10,
                 anchor_x='right', anchor_y='bottom')
         self.label.text = "INITIATING MAPSET..."
-        mapset = MapSet("Deluge")
+        mapset = MapSet(map_name)
         self.label.text = "INITIATING MAPVIEW..."
         mapview = MapView(mapset, self.window)
         interface = Interface(self.window)
@@ -42,10 +43,16 @@ class LoadScreen(object):
         self.window.push_handlers(self.window.keys)
         
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        sys.exit("specify the map you want to load from the map folder\nusage: python hr.py \"A Viking We Shall Go\"")
+    
+    if not os.path.exists(os.path.join(pyglet.resource._default_loader._script_home,"maps","%s.h3m" % sys.argv[1])):
+        sys.exit("cannot find file %s" % os.path.join(pyglet.resource._default_loader._script_home,"maps","%s.h3m" % sys.argv[1]))
+
     pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,
         pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
     window = Window()
-    window.push_handlers(LoadScreen(window))
+    window.push_handlers(LoadScreen(window, sys.argv[1]))
     img = pyglet.resource.image("data/cursors/cradvntr.def/0.png")
     window.set_mouse_cursor(pyglet.window.ImageMouseCursor(img, 0, 40))
     pyglet.app.run()
