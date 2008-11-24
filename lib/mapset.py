@@ -69,7 +69,7 @@ class Animation(object):
             memmove(buf, img._current_data, len(img._current_data))
             data = buf.raw
             rows = [data[i:i + abs(data_pitch)] for i in
-                   xrange(len(img._current_data)-abs(data_pitch),
+                   range(len(img._current_data)-abs(data_pitch),
                    -1, -abs(data_pitch))]
             self.__frames.append(''.join(rows))
         self.__animation = 0
@@ -113,32 +113,32 @@ class MapSet(object):
 
     def __init__(self, map_name):
         h3m_data = h3m.extract(os.path.join(pyglet.resource._default_loader._script_home,"maps","%s.h3m" % map_name))
-        edge_map = [[] for i in xrange(len(h3m_data["upper_terrain"])+16)]
-        for num in xrange(len(edge_map)):
+        edge_map = [[] for i in range(len(h3m_data["upper_terrain"])+16)]
+        for num in range(len(edge_map)):
             if num < 7 or num > len(edge_map)-8:
                 line = []
-                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in xrange(len(h3m_data["upper_terrain"][0])+18)])
+                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in range(len(h3m_data["upper_terrain"][0])+18)])
             elif num == 7:
                 line = []
-                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in xrange(8)])
+                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in range(8)])
                 line.append([-1, 16, 0, 0, 0, 0, 0])
-                line.extend([[-1, 20+i%4, 0, 0, 0, 0, 0] for i in xrange(len(h3m_data["upper_terrain"][0]))])
+                line.extend([[-1, 20+i%4, 0, 0, 0, 0, 0] for i in range(len(h3m_data["upper_terrain"][0]))])
                 line.append([-1, 17, 0, 0, 0, 0, 0])
-                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in xrange(8)])
+                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in range(8)])
             elif num == len(edge_map)-8:
                 line = []
-                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in xrange(8)])
+                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in range(8)])
                 line.append([-1, 19, 0, 0, 0, 0, 0])
-                line.extend([[-1, 28+i%4, 0, 0, 0, 0, 0] for i in xrange(len(h3m_data["upper_terrain"][0]))])
+                line.extend([[-1, 28+i%4, 0, 0, 0, 0, 0] for i in range(len(h3m_data["upper_terrain"][0]))])
                 line.append([-1, 18, 0, 0, 0, 0, 0])
-                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in xrange(8)])
+                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in range(8)])
             else:
                 line = []
-                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in xrange(8)])
+                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in range(8)])
                 line.append([-1, 32+num%4, 0, 0, 0, 0, 0])
                 line.extend(h3m_data["upper_terrain"][num-8])
                 line.append([-1, 24+num%4, 0, 0, 0, 0, 0])
-                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in xrange(8)])
+                line.extend([[-1, 0+(i-1)%4+4*(num%4), 0, 0, 0, 0, 0] for i in range(8)])
             edge_map[num] = line
         h3m_data["upper_terrain"] = edge_map
         
@@ -154,12 +154,12 @@ class MapSet(object):
         for y, line in enumerate(h3m_data["upper_terrain"]):
             for x, tile in enumerate(line):
                 if tile[0] == -1: #edge
-                    if "edg" not in tile_textures.keys():
-                        tile_textures["edg"] = [self.load_map_object('data/advmap_tiles/edg.def/%d.png'%i, 100) for i in xrange(36)]
+                    if "edg" not in list(tile_textures.keys()):
+                        tile_textures["edg"] = [self.load_map_object('data/advmap_tiles/edg.def/%d.png'%i, 100) for i in range(36)]
                     self.__tiles[x,y] = [tile_textures["edg"][tile[1]]]
                 elif tile[0] == 0: #dirt
-                    if "dirttl" not in tile_textures.keys():
-                        tile_textures["dirttl"] = [self.load_map_object('data/advmap_tiles/dirttl.def/%d.png'%i, 0) for i in xrange(46)]
+                    if "dirttl" not in list(tile_textures.keys()):
+                        tile_textures["dirttl"] = [self.load_map_object('data/advmap_tiles/dirttl.def/%d.png'%i, 0) for i in range(46)]
                     flip_x = bool(tile[6] & 1)
                     flip_y = bool(tile[6] & 2)
                     if flip_x or flip_y:
@@ -169,12 +169,12 @@ class MapSet(object):
                     else:
                         self.__tiles[x,y] = [tile_textures["dirttl"][tile[1]]]
                 elif tile[0] == 1: #sand
-                    if "sandtl" not in tile_textures.keys():
-                        tile_textures["sandtl"] = [self.load_map_object('data/advmap_tiles/sandtl.def/%d.png'%i, 0) for i in xrange(24)]
+                    if "sandtl" not in list(tile_textures.keys()):
+                        tile_textures["sandtl"] = [self.load_map_object('data/advmap_tiles/sandtl.def/%d.png'%i, 0) for i in range(24)]
                     self.__tiles[x,y] = [tile_textures["sandtl"][tile[1]]]
                 elif tile[0] == 2: #grass
-                    if "grastl" not in tile_textures.keys():
-                        tile_textures["grastl"] = [self.load_map_object('data/advmap_tiles/grastl.def/%d.png'%i, 0) for i in xrange(79)]
+                    if "grastl" not in list(tile_textures.keys()):
+                        tile_textures["grastl"] = [self.load_map_object('data/advmap_tiles/grastl.def/%d.png'%i, 0) for i in range(79)]
                     flip_x = bool(tile[6] & 1)
                     flip_y = bool(tile[6] & 2)
                     if flip_x or flip_y:
@@ -184,8 +184,8 @@ class MapSet(object):
                     else:
                         self.__tiles[x,y] = [tile_textures["grastl"][tile[1]]]
                 elif tile[0] == 3: #snow
-                    if "snowtl" not in tile_textures.keys():
-                        tile_textures["snowtl"] = [self.load_map_object('data/advmap_tiles/snowtl.def/%d.png'%i, 0) for i in xrange(79)]
+                    if "snowtl" not in list(tile_textures.keys()):
+                        tile_textures["snowtl"] = [self.load_map_object('data/advmap_tiles/snowtl.def/%d.png'%i, 0) for i in range(79)]
                     flip_x = bool(tile[6] & 1)
                     flip_y = bool(tile[6] & 2)
                     if flip_x or flip_y:
@@ -195,8 +195,8 @@ class MapSet(object):
                     else:
                         self.__tiles[x,y] = [tile_textures["snowtl"][tile[1]]]
                 elif tile[0] == 4: #swamp
-                    if "swmptl" not in tile_textures.keys():
-                        tile_textures["swmptl"] = [self.load_map_object('data/advmap_tiles/swmptl.def/%d.png'%i, 0) for i in xrange(79)]
+                    if "swmptl" not in list(tile_textures.keys()):
+                        tile_textures["swmptl"] = [self.load_map_object('data/advmap_tiles/swmptl.def/%d.png'%i, 0) for i in range(79)]
                     flip_x = bool(tile[6] & 1)
                     flip_y = bool(tile[6] & 2)
                     if flip_x or flip_y:
@@ -206,8 +206,8 @@ class MapSet(object):
                     else:
                         self.__tiles[x,y] = [tile_textures["swmptl"][tile[1]]]
                 elif tile[0] == 5: #rough
-                    if "rougtl" not in tile_textures.keys():
-                        tile_textures["rougtl"] = [self.load_map_object('data/advmap_tiles/rougtl.def/%d.png'%i, 0) for i in xrange(79)]
+                    if "rougtl" not in list(tile_textures.keys()):
+                        tile_textures["rougtl"] = [self.load_map_object('data/advmap_tiles/rougtl.def/%d.png'%i, 0) for i in range(79)]
                     flip_x = bool(tile[6] & 1)
                     flip_y = bool(tile[6] & 2)
                     if flip_x or flip_y:
@@ -217,8 +217,8 @@ class MapSet(object):
                     else:
                         self.__tiles[x,y] = [tile_textures["rougtl"][tile[1]]]
                 elif tile[0] == 7: #lava
-                    if "lavatl" not in tile_textures.keys():
-                        tile_textures["lavatl"] = [self.load_map_object('data/advmap_tiles/lavatl.def/%d.png'%i, 0) for i in xrange(79)]
+                    if "lavatl" not in list(tile_textures.keys()):
+                        tile_textures["lavatl"] = [self.load_map_object('data/advmap_tiles/lavatl.def/%d.png'%i, 0) for i in range(79)]
                     flip_x = bool(tile[6] & 1)
                     flip_y = bool(tile[6] & 2)
                     if flip_x or flip_y:
@@ -228,9 +228,9 @@ class MapSet(object):
                     else:
                         self.__tiles[x,y] = [tile_textures["lavatl"][tile[1]]]
                 elif tile[0] == 8: #water 12 anims
-                    if "watrtl" not in tile_textures.keys():
-                        textures = [self.load_map_object('data/advmap_tiles/watrtl.def/%d/0.png'%i, 0) for i in xrange(33)]
-                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/watrtl.def/%d/%d.png'%(i,j))) for j in xrange(12)] for i in xrange(33)]
+                    if "watrtl" not in list(tile_textures.keys()):
+                        textures = [self.load_map_object('data/advmap_tiles/watrtl.def/%d/0.png'%i, 0) for i in range(33)]
+                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/watrtl.def/%d/%d.png'%(i,j))) for j in range(12)] for i in range(33)]
                         tile_textures["watrtl"] = {
                             (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
                             (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
@@ -241,8 +241,8 @@ class MapSet(object):
                     flip_y = (tile[6]>>1)&1
                     self.__tiles[x,y] = [tile_textures["watrtl"][flip_x, flip_y][tile[1]]]
                 elif tile[0] == 9: #rock
-                    if "rocktl" not in tile_textures.keys():
-                        tile_textures["rocktl"] = [self.load_map_object('data/advmap_tiles/rocktl.def/%d.png'%i, 0) for i in xrange(48)]
+                    if "rocktl" not in list(tile_textures.keys()):
+                        tile_textures["rocktl"] = [self.load_map_object('data/advmap_tiles/rocktl.def/%d.png'%i, 0) for i in range(48)]
                     self.__tiles[x,y] = [tile_textures["rocktl"][tile[1]]]
                 else:
                     raise NotImplementedError
@@ -250,9 +250,9 @@ class MapSet(object):
                 if tile[2] == 0: #no river
                     pass
                 elif tile[2] == 1: #clrrvr 12 anims
-                    if "clrrvr" not in tile_textures.keys():
-                        textures = [self.load_map_object('data/advmap_tiles/clrrvr.def/%d/0.png'%i, 1) for i in xrange(13)]
-                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in xrange(12)] for i in xrange(13)]
+                    if "clrrvr" not in list(tile_textures.keys()):
+                        textures = [self.load_map_object('data/advmap_tiles/clrrvr.def/%d/0.png'%i, 1) for i in range(13)]
+                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in range(12)] for i in range(13)]
                         tile_textures["clrrvr"] = {
                             (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
                             (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
@@ -263,8 +263,8 @@ class MapSet(object):
                     flip_y = (tile[6]>>3)&1
                     self.__tiles[x,y].append(tile_textures["clrrvr"][flip_x, flip_y][tile[3]])
                 elif tile[2] == 2: #icyrvr
-                    if "icyrvr" not in tile_textures.keys():
-                        tile_textures["icyrvr"] = [self.load_map_object('data/advmap_tiles/icyrvr.def/%d.png'%i, 1) for i in xrange(13)]
+                    if "icyrvr" not in list(tile_textures.keys()):
+                        tile_textures["icyrvr"] = [self.load_map_object('data/advmap_tiles/icyrvr.def/%d.png'%i, 1) for i in range(13)]
                     flip_x = bool(tile[6] & 4)
                     flip_y = bool(tile[6] & 8)
                     if flip_x or flip_y:
@@ -274,9 +274,9 @@ class MapSet(object):
                     else:
                         self.__tiles[x, y].append(tile_textures["icyrvr"][tile[3]])
                 elif tile[2] == 3: #mudrvr
-                    if "mudrvr" not in tile_textures.keys():
-                        textures = [self.load_map_object('data/advmap_tiles/mudrvr.def/%d/0.png'%i, 1) for i in xrange(13)]
-                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in xrange(12)] for i in xrange(13)]
+                    if "mudrvr" not in list(tile_textures.keys()):
+                        textures = [self.load_map_object('data/advmap_tiles/mudrvr.def/%d/0.png'%i, 1) for i in range(13)]
+                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in range(12)] for i in range(13)]
                         tile_textures["mudrvr"] = {
                             (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
                             (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
@@ -287,9 +287,9 @@ class MapSet(object):
                     flip_y = (tile[6]>>3)&1
                     self.__tiles[x,y].append(tile_textures["mudrvr"][flip_x, flip_y][tile[3]])
                 elif tile[2] == 4: #lavrvr
-                    if "lavrvr" not in tile_textures.keys():
-                        textures = [self.load_map_object('data/advmap_tiles/lavrvr.def/%d/0.png'%i, 1) for i in xrange(13)]
-                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in xrange(9)] for i in xrange(13)]
+                    if "lavrvr" not in list(tile_textures.keys()):
+                        textures = [self.load_map_object('data/advmap_tiles/lavrvr.def/%d/0.png'%i, 1) for i in range(13)]
+                        images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in range(9)] for i in range(13)]
                         tile_textures["lavrvr"] = {
                             (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
                             (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
@@ -300,13 +300,13 @@ class MapSet(object):
                     flip_y = (tile[6]>>3)&1
                     self.__tiles[x,y].append(tile_textures["lavrvr"][flip_x, flip_y][tile[3]])
                 else:
-                    raise NotImplementedError, tile[2]
+                    raise NotImplementedError(tile[2])
                 
                 if tile[4] == 0: #no road
                     pass
                 elif tile[4] == 1: #dirtrd
-                    if "dirtrd" not in tile_textures.keys():
-                        tile_textures["dirtrd"] = [self.load_map_object('data/advmap_tiles/dirtrd.def/%d.png'%i, 1) for i in xrange(17)]
+                    if "dirtrd" not in list(tile_textures.keys()):
+                        tile_textures["dirtrd"] = [self.load_map_object('data/advmap_tiles/dirtrd.def/%d.png'%i, 1) for i in range(17)]
                     flip_x = bool(tile[6] & 16)
                     flip_y = bool(tile[6] & 32)
                     if flip_x or flip_y:
@@ -316,8 +316,8 @@ class MapSet(object):
                     else:
                         self.__tiles[x, y].append(tile_textures["dirtrd"][tile[5]])
                 elif tile[4] == 2: #gravrd
-                    if "gravrd" not in tile_textures.keys():
-                        tile_textures["gravrd"] = [self.load_map_object('data/advmap_tiles/gravrd.def/%d.png'%i, 1) for i in xrange(17)]
+                    if "gravrd" not in list(tile_textures.keys()):
+                        tile_textures["gravrd"] = [self.load_map_object('data/advmap_tiles/gravrd.def/%d.png'%i, 1) for i in range(17)]
                     flip_x = bool(tile[6] & 16)
                     flip_y = bool(tile[6] & 32)
                     if flip_x or flip_y:
@@ -327,8 +327,8 @@ class MapSet(object):
                     else:
                         self.__tiles[x, y].append(tile_textures["gravrd"][tile[5]])
                 elif tile[4] == 3: #cobbrd
-                    if "cobbrd" not in tile_textures.keys():
-                        tile_textures["cobbrd"] = [self.load_map_object('data/advmap_tiles/cobbrd.def/%d.png'%i, 1) for i in xrange(17)]
+                    if "cobbrd" not in list(tile_textures.keys()):
+                        tile_textures["cobbrd"] = [self.load_map_object('data/advmap_tiles/cobbrd.def/%d.png'%i, 1) for i in range(17)]
                     flip_x = bool(tile[6] & 16)
                     flip_y = bool(tile[6] & 32)
                     if flip_x or flip_y:
@@ -338,7 +338,7 @@ class MapSet(object):
                     else:
                         self.__tiles[x, y].append(tile_textures["cobbrd"][tile[5]])
                 else:
-                    raise NotImplementedError, tile[4]
+                    raise NotImplementedError(tile[4])
         
         images = []
         for order, obj in enumerate(h3m_data["objects"]):
@@ -347,7 +347,7 @@ class MapSet(object):
             while 1:
                 imgs.append(pyglet.image.load(None, file=pyglet.resource.file("data/advmap_objects/" + obj["filename"] + "/%d.png"%i)))
                 i += 1
-                if "data/advmap_objects/" + obj["filename"] + "/%d.png" % i not in pyglet.resource._default_loader._index.keys():
+                if "data/advmap_objects/" + obj["filename"] + "/%d.png" % i not in list(pyglet.resource._default_loader._index.keys()):
                     break;
             images.append((imgs, order))
         
@@ -372,9 +372,9 @@ class MapSet(object):
             self.__tiles[obj["x"] + 9,obj["y"] + 8].append(self.objects[obj["id"]])
     
     def get_tiles(self, tiles_x, tiles_y, div_x, div_y):
-        for y in xrange(tiles_y - 1, -6, -1):
+        for y in range(tiles_y - 1, -6, -1):
             y1 = y * 32
-            for x in xrange(tiles_x + 5 - 1, -1, -1):
+            for x in range(tiles_x + 5 - 1, -1, -1):
                 for obj in self.__tiles.get((x - div_x, div_y - y), []):
                     x1 = x * 32 - obj.width + 32
                     x2 = x1 + obj.width

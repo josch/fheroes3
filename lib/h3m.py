@@ -61,7 +61,7 @@ def extract(filename):
         (map_data[color]["heroes_count"], ) = struct.unpack("<I", h3m_data.read(4))
         if map_data[color]["heroes_count"] > 0:
             map_data[color]["heroes"] = {}
-            for i in xrange(map_data[color]["heroes_count"]):
+            for i in range(map_data[color]["heroes_count"]):
                 (map_data[color]["heroes"]["portrait"], ) = struct.unpack("<B", h3m_data.read(1))
                 (name_length, ) = struct.unpack("<I", h3m_data.read(4))
                 map_data[color]["heroes"]["name"] = h3m_data.read(name_length)
@@ -121,7 +121,7 @@ def extract(filename):
     (map_data["heroes_count"], ) = struct.unpack("<B", h3m_data.read(1))
     if map_data["heroes_count"] > 0:
         map_data["free_heroes"] = []
-        for i in xrange(map_data["heroes_count"]):
+        for i in range(map_data["heroes_count"]):
             (hero_id, ) = struct.unpack("<B", h3m_data.read(1))
             (hero_portrait, ) = struct.unpack("<B", h3m_data.read(1))
             (name_length, ) = struct.unpack("<I", h3m_data.read(4))
@@ -143,7 +143,7 @@ def extract(filename):
     (map_data["rumor_count"], ) = struct.unpack("<I", h3m_data.read(4))
     if map_data["rumor_count"] > 0:
         map_data["rumors"] = []
-        for i in xrange(map_data["rumor_count"]):
+        for i in range(map_data["rumor_count"]):
             (name_length, ) = struct.unpack("<I", h3m_data.read(4))
             rumor_name = h3m_data.read(name_length)
             (text_length, ) = struct.unpack("<I", h3m_data.read(4))
@@ -151,7 +151,7 @@ def extract(filename):
             map_data["rumors"].append({"name":rumor_name, "text":rumor_text})
     
     #hero options
-    for i in xrange(156):
+    for i in range(156):
         (hero_enable, ) = struct.unpack("<B", h3m_data.read(1))
         if hero_enable == 1:
             (isExp, ) = struct.unpack("<B", h3m_data.read(1))
@@ -160,7 +160,7 @@ def extract(filename):
             (isSecSkill, ) = struct.unpack("<B", h3m_data.read(1))
             if isSecSkill == 0x01:
                 (skills_count) = struct.unpack("<I", h3m_data.read(4))
-                for i in xrange(skills_count):
+                for i in range(skills_count):
                     (skill_id, ) = struct.unpack("<B", h3m_data.read(1))
                     (skill_lvl, ) = struct.unpack("<B", h3m_data.read(1))
             (isArtifact, ) = struct.unpack("<B", h3m_data.read(1))
@@ -178,24 +178,24 @@ def extract(filename):
             if isPrimarySkills == 0x01:
                 (attack, defense, power, knowledge) = struct.unpack("<4B", h3m_data.read(4))
     
-    map_data["upper_terrain"] = [[] for i in xrange(map_data["map_size"])]
+    map_data["upper_terrain"] = [[] for i in range(map_data["map_size"])]
     #read upper world
-    for i in xrange(map_data["map_size"]**2):
+    for i in range(map_data["map_size"]**2):
         x = i%map_data["map_size"]
         y = (i-x)/map_data["map_size"]
         map_data["upper_terrain"][y].append(struct.unpack("<7B", h3m_data.read(7)))
     
     #read underworld
     if map_data["underworld"]:
-        map_data["lower_terrain"] = [[] for i in xrange(map_data["map_size"])]
-        for i in xrange(map_data["map_size"]**2):
+        map_data["lower_terrain"] = [[] for i in range(map_data["map_size"])]
+        for i in range(map_data["map_size"]**2):
             x = i%map_data["map_size"]
             y = (i-x)/map_data["map_size"]
             map_data["lower_terrain"][y].append(struct.unpack("<7B", h3m_data.read(7)))
     
     (map_data["object_count"], ) = struct.unpack("<I", h3m_data.read(4))
     map_data["objects"] = []
-    for i in xrange(map_data["object_count"]):
+    for i in range(map_data["object_count"]):
         (length, ) = struct.unpack("<I", h3m_data.read(4))
         filename = h3m_data.read(length)
         h3m_data.read(6) #passability
@@ -213,15 +213,15 @@ def extract(filename):
     (map_data["tunedobj_count"], ) = struct.unpack("<I", h3m_data.read(4))
     
     map_data["tunedobj"] = []
-    for i in xrange(map_data["tunedobj_count"]):
+    for i in range(map_data["tunedobj_count"]):
         (x, y, z) = struct.unpack("<3B", h3m_data.read(3))
         (object_id, ) = struct.unpack("<I", h3m_data.read(4))
         #print x,y,z,object_id,
         junk = h3m_data.read(5) #junk
-        if junk != "\x00\x00\x00\x00\x00":
-            for c in junk:
-                print "%02d"%ord(c),
-            break
+        #if junk != "\x00\x00\x00\x00\x00":
+        #    for c in junk:
+        #        print("%02d"%ord(c), end=' ')
+        #    break
         #print i, map_data["objects"][object_id]["filename"],
         #print map_data["objects"][object_id]["class"]
         
@@ -241,7 +241,7 @@ def extract(filename):
                 text = h3m_data.read(length)
                 (isGuards, ) = struct.unpack("<B", h3m_data.read(1))
                 if isGuards == 0x01:
-                    for i in xrange(7):
+                    for i in range(7):
                         (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
                 h3m_data.read(4) #junk
             (quantity, ) = struct.unpack("<I", h3m_data.read(4))
@@ -261,12 +261,12 @@ def extract(filename):
             (isSecSkill, ) = struct.unpack("<B", h3m_data.read(1))
             if isSecSkill == 0x01:
                 (skills_count, ) = struct.unpack("<I", h3m_data.read(4))
-                for i in xrange(skills_count):
+                for i in range(skills_count):
                     (skill_id, ) = struct.unpack("<B", h3m_data.read(1))
                     (skill_lvl, ) = struct.unpack("<B", h3m_data.read(1))
             (isCreature, ) = struct.unpack("<B", h3m_data.read(1))
             if isCreature == 0x01:
-                for i in xrange(7):
+                for i in range(7):
                     (guard_id, ) = struct.unpack("<H", h3m_data.read(2))
                     (guard_count, ) = struct.unpack("<H", h3m_data.read(2))
             (creaturesFormation, ) = struct.unpack("<B", h3m_data.read(1))
@@ -279,7 +279,7 @@ def extract(filename):
                     = struct.unpack("<19H", h3m_data.read(38))
                 (knapsack_count, ) = struct.unpack("<H", h3m_data.read(2))
                 if knapsack_count > 0:
-                    for i in xrange(knapsack_count):
+                    for i in range(knapsack_count):
                         (knapsackID, ) = struct.unpack("<H", h3m_data.read(2))
             (zoneRadius, ) = struct.unpack("<B", h3m_data.read(1))
             (isBiography, ) = struct.unpack("<B", h3m_data.read(1))
@@ -303,7 +303,7 @@ def extract(filename):
                 text = h3m_data.read(length)
                 (isGuards, ) = struct.unpack("<B", h3m_data.read(1))
                 if isGuards == 0x01:
-                    for i in xrange(7):
+                    for i in range(7):
                         (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
                 h3m_data.read(4) #junk
             (spell_id, ) = struct.unpack("<I", h3m_data.read(4))
@@ -335,7 +335,7 @@ def extract(filename):
                 name = h3m_data.read(length)
             (isGuard, ) = struct.unpack("<B", h3m_data.read(1))
             if isGuard == 0x01:
-                for i in xrange(7):
+                for i in range(7):
                     (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
             (formation, ) = struct.unpack("<B", h3m_data.read(1))
             (isBuildings, ) = struct.unpack("<B", h3m_data.read(1))
@@ -348,7 +348,7 @@ def extract(filename):
             canSpells = struct.unpack("<9B", h3m_data.read(9))
             (eventQuantity, ) = struct.unpack("<I", h3m_data.read(4))
             if eventQuantity > 0:
-                for i in xrange(eventQuantity):
+                for i in range(eventQuantity):
                     (length, ) = struct.unpack("<I", h3m_data.read(4))
                     event_name = h3m_data.read(length)
                     (length, ) = struct.unpack("<I", h3m_data.read(4))
@@ -369,12 +369,12 @@ def extract(filename):
                 text = h3m_data.read(length)
                 (isGuards, ) = struct.unpack("<B", h3m_data.read(1))
                 if isGuards == 0x01:
-                    for i in xrange(7):
+                    for i in range(7):
                         (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
                 h3m_data.read(4) #junk
         elif map_data["objects"][object_id]["class"] in (33, 219):
             (color, ) = struct.unpack("<I", h3m_data.read(4))
-            for i in xrange(7):
+            for i in range(7):
                 (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
             (undeleteSoldiers, ) = struct.unpack("<B", h3m_data.read(1))
             h3m_data.read(8)
@@ -395,11 +395,11 @@ def extract(filename):
                 (monster_id, ) = struct.unpack("<I", h3m_data.read(4))
             elif quest == 0x05:
                 (art_quantity, ) = struct.unpack("<B", h3m_data.read(1))
-                for i in xrange(art_quantity):
+                for i in range(art_quantity):
                     (art, ) = struct.unpack("<H", h3m_data.read(2))
             elif quest == 0x06:
                 (creatures_quantity, ) = struct.unpack("<B", h3m_data.read(1))
-                for i in xrange(creatures_quantity):
+                for i in range(creatures_quantity):
                     (guard_id, ) = struct.unpack("<H", h3m_data.read(2))
                     (guard_count, ) = struct.unpack("<H", h3m_data.read(2))
             elif quest == 0x07:
@@ -473,11 +473,11 @@ def extract(filename):
                 (monster_id, ) = struct.unpack("<I", h3m_data.read(4))
             elif quest == 0x05:
                 (art_quantity, ) = struct.unpack("<B", h3m_data.read(1))
-                for i in xrange(art_quantity):
+                for i in range(art_quantity):
                     (art, ) = struct.unpack("<H", h3m_data.read(2))
             elif quest == 0x06:
                 (creatures_quantity, ) = struct.unpack("<B", h3m_data.read(1))
-                for i in xrange(creatures_quantity):
+                for i in range(creatures_quantity):
                     (guard_id, ) = struct.unpack("<H", h3m_data.read(2))
                     (guard_count, ) = struct.unpack("<H", h3m_data.read(2))
             elif quest == 0x07:
@@ -518,7 +518,7 @@ def extract(filename):
                 text = h3m_data.read(length)
                 (isGuards, ) = struct.unpack("<B", h3m_data.read(1))
                 if isGuards == 0x01:
-                    for i in xrange(7):
+                    for i in range(7):
                         (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
                 h3m_data.read(4) #junk
             (exp, spell_points, morals, luck, wood, mercury, ore, sulfur,
@@ -526,19 +526,19 @@ def extract(filename):
                 struct.unpack("<IIBBIIIIIIIBBBB", h3m_data.read(42))
             (secSkills, ) = struct.unpack("<B", h3m_data.read(1))
             if secSkills > 0:
-                for i in xrange(secSkills):
+                for i in range(secSkills):
                     (skill_id, skill_lvl) = struct.unpack("<BB", h3m_data.read(2))
             (artefacts, ) = struct.unpack("<B", h3m_data.read(1))
             if artefacts > 0:
-                for i in xrange(artefacts):
+                for i in range(artefacts):
                     (artID, ) = struct.unpack("<H", h3m_data.read(2))
             (spells, ) = struct.unpack("<B", h3m_data.read(1))
             if spells > 0:
-                for i in xrange(spells):
+                for i in range(spells):
                     (spellID, ) = struct.unpack("<B", h3m_data.read(1))
             (monsters, ) = struct.unpack("<B", h3m_data.read(1))
             if monsters > 0:
-                for i in xrange(monsters):
+                for i in range(monsters):
                     (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
             h3m_data.read(8) #junk
         elif map_data["objects"][object_id]["class"] == 26:
@@ -548,7 +548,7 @@ def extract(filename):
                 text = h3m_data.read(length)
                 (isGuards, ) = struct.unpack("<B", h3m_data.read(1))
                 if isGuards == 0x01:
-                    for i in xrange(7):
+                    for i in range(7):
                         (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
                 h3m_data.read(4) #junk
             (exp, spell_points, morals, luck, wood, mercury, ore, sulfur,
@@ -556,19 +556,19 @@ def extract(filename):
                 struct.unpack("<IIBBIIIIIIIBBBB", h3m_data.read(42))
             (secSkills, ) = struct.unpack("<B", h3m_data.read(1))
             if secSkills > 0:
-                for i in xrange(secSkills):
+                for i in range(secSkills):
                     (skill_id, skill_lvl) = struct.unpack("<BB", h3m_data.read(2))
             (artefacts, ) = struct.unpack("<B", h3m_data.read(1))
             if artefacts > 0:
-                for i in xrange(artefacts):
+                for i in range(artefacts):
                     (artID, ) = struct.unpack("<H", h3m_data.read(2))
             (spells, ) = struct.unpack("<B", h3m_data.read(1))
             if spells > 0:
-                for i in xrange(spells):
+                for i in range(spells):
                     (spellID, ) = struct.unpack("<B", h3m_data.read(1))
             (monsters, ) = struct.unpack("<B", h3m_data.read(1))
             if monsters > 0:
-                for i in xrange(monsters):
+                for i in range(monsters):
                     (guard_id, guard_count) = struct.unpack("<HH", h3m_data.read(4))
             h3m_data.read(8) #junk
             (players, isAICan, disableAfterFirstDay) = struct.unpack("<BBB", h3m_data.read(3))
@@ -576,7 +576,7 @@ def extract(filename):
     
     try:
         (gevents_count, ) = struct.unpack("<I", h3m_data.read(4))
-        for i in xrange(gevents_count):
+        for i in range(gevents_count):
             (length, ) = struct.unpack("<I", h3m_data.read(4))
             name = h3m_data.read(length)
             (length, ) = struct.unpack("<I", h3m_data.read(4))
@@ -589,7 +589,7 @@ def extract(filename):
             (event_iteration,) = struct.unpack("<H", h3m_data.read(2))
             h3m_data.read(16) #junk
     except:
-        print "d'ough...'"
+        print("d'ough...'")
     
     h3m_data.read(124) #junk
     

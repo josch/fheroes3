@@ -21,7 +21,9 @@ import pyglet
 
 class Window(pyglet.window.Window):
     def __init__(self, *args, **kwargs):
-        super(Window, self).__init__(1280, 1024, resizable=True, vsync=False)
+        width = kwargs.get("width", 1024)
+        height = kwargs.get("height", 768)
+        super(Window, self).__init__(width, height, resizable=True, vsync=False)
         self.keys = pyglet.window.key.KeyStateHandler()
         self.push_handlers(self.keys)
         self.fps = pyglet.clock.ClockDisplay()
@@ -45,8 +47,5 @@ class PNGRGBEncoder(pyglet.image.codecs.ImageEncoder):
         pitch = -(image.width * len(format))
         pil_image = Image.fromstring(
             format, (image.width, image.height), image.get_data(format, pitch))
-        try:
-            #.convert('P', palette=Image.WEB)
-            pil_image.convert("RGB").save(file)
-        except Exception, e:
-            raise ImageEncodeException(e)
+        #.convert('P', palette=Image.WEB)
+        pil_image.convert("RGB").save(file)

@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,
         pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
-    window = Window()
+    window = Window(width=1024, height=768)
     window.push_handlers(LoadScreen(window, sys.argv[1]))
     img = pyglet.resource.image("data/cursors/cradvntr.def/0.png")
     window.set_mouse_cursor(pyglet.window.ImageMouseCursor(img, 0, 40))
