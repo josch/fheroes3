@@ -1,0 +1,8 @@
+this is a list of stuff that is still not understood in its workings and needs
+additional reverse engineering.
+
+projects like wake of gods and wcmi probably already have full knowledge on
+these matters, so help from them is warmly welcome
+
+ * how do map objects overlap? where is the information stored which objects
+   draw above or below others?

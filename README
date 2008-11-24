@@ -1,0 +1,27 @@
+this is still not well tested, so mail me on any problems:
+
+j.schauer@email.de
+
+place your heroes of might and magic complete files in the same directory
+as hr.py and extractor.py
+ * H3bitmap.lod
+ * H3ab_bmp.lod
+ * H3sprite.lod
+ * H3ab_spr.lod
+ * Heroes3.snd
+ * H3ab_ahd.snd
+ * VIDEO.VID
+ * H3ab_ahd.vid
+
+open the commandline and navigate to this directory
+
+python extractor.py
+
+it will find itself the files above and extract them into a new data directory.
+the process will take half an hour due to heavy image manipulations which are
+very slow in python. The output will be around half a gigabyte.
+
+then place some scenario file in the maps folder and start heroes renaissance
+with a command like:
+
+python hr.py "A Viking We Shall Go"
