@@ -212,15 +212,15 @@ class MapView(object):
         vertices = [[] for value in self.mapset.groups]
         tex_coords = [[] for value in self.mapset.groups]
         count = [0 for value in self.mapset.groups]
-        self.cur_objects = [[] for value in self.mapset.groups]
+        self.cur_objects = [[] for value in self.mapset.atlases]
         # for each tile in the viewport, update the list of the specific group
         for obj, coords in self.mapset.get_tiles(self.tiles_x, self.tiles_y,
                                                  self.div_x, self.div_y):
             tex_coords[obj.group].extend(obj.tex_coords)
             vertices[obj.group].extend(coords)
             count[obj.group]+=4
-            if isinstance(obj, Animation):
-                self.cur_objects[obj.group].append(obj)
+            if isinstance(obj, Animation_Object) and len(obj.animation) > 1:
+                self.cur_objects[obj.animation.atlas].append(obj.animation)
         for i, group in enumerate(self.mapset.groups):
             if count[i] == 0:
                 if self.vl_objects[i] is None:
@@ -245,7 +245,8 @@ class MapView(object):
                     self.vl_objects[i].tex_coords = tex_coords[i]
                     self.vl_objects[i].vertices = vertices[i]
                     self.vl_objects[i].colors = (255,255,255,255)*count[i]
-            # make object list unique
+        # make object list unique
+        for i, atlas in enumerate(self.mapset.atlases):
             self.cur_objects[i] = list(set(self.cur_objects[i]))
     
     def update(self, dt):
@@ -311,10 +312,9 @@ class MapView(object):
         self._init_view()
     
     def animate_water(self, dt):
-        for i, group in enumerate(self.mapset.groups):
+        for i, atlas in enumerate(self.mapset.atlases):
             if len(self.cur_objects[i]) > 0:
-                pyglet.gl.glBindTexture(self.cur_objects[i][0].tex.target,
-                                        self.cur_objects[i][0].tex.id)
+                pyglet.gl.glBindTexture(atlas.texture.target, atlas.texture.id)
                 for obj in self.cur_objects[i]:
                     pyglet.gl.glTexSubImage2D(obj.tex.owner.target,
                             obj.tex.owner.level,

@@ -205,10 +205,10 @@ def extract(filename):
         (obj_class, ) = struct.unpack("<I", h3m_data.read(4)) #class
         (obj_number, ) = struct.unpack("<I", h3m_data.read(4)) #number
         (obj_group, ) = struct.unpack("<B", h3m_data.read(1)) #group
-        h3m_data.read(1) #isOverlay
+        (overlay, ) = struct.unpack("<B", h3m_data.read(1)) #isOverlay
         h3m_data.read(16) #junk
         map_data["objects"].append({"filename":filename.lower(), "class":obj_class,
-            "number":obj_number, "group":obj_group})
+            "number":obj_number, "group":obj_group, "overlay":overlay})
     
     (map_data["tunedobj_count"], ) = struct.unpack("<I", h3m_data.read(4))
     

@@ -22,78 +22,65 @@ from ctypes import create_string_buffer, memmove
 from lib import h3m
 import os
 
-class OrderedTextureGroup(pyglet.graphics.Group):
-    def __init__(self, order, texture, parent=None):
-        super(OrderedTextureGroup, self).__init__(parent)
-        self.texture = texture
-        self.order = order
-
-    def set_state(self):
-        pyglet.gl.glEnable(self.texture.target)
-        pyglet.gl.glBindTexture(self.texture.target, self.texture.id)
-
-    def unset_state(self):
-        pyglet.gl.glDisable(self.texture.target)
-
-    def __hash__(self):
-        return hash((self.order, self.texture.target, self.texture.id,
-               self.parent))
-
-    def __eq__(self, other):
-        return (self.__class__ is other.__class__ and
-            self.order == other.order and
-            self.texture.target == other.texture.target and
-            self.texture.id == other.texture.id and
-            self.parent == self.parent)
-
-    def __repr__(self):
-        return '%s(id=%d)' % (self.__class__.__name__, self.order,
-               self.texture.id)
-        
-    def __cmp__(self, other):
-        if isinstance(other, OrderedTextureGroup):
-            return cmp(self.order, other.order)
-        return -1
-
 class Animation(object):
-    def __init__(self, tex_region, frames, flip_x=False, flip_y=False):
+    def __init__(self, tex_region, frames, overlay=False, flip_x=False, flip_y=False):
+        self.overlay = overlay
         self.texgroup = tex_region.group
+        self.atlas = tex_region.atlas
         if flip_x or flip_y:
             self.tex = tex_region.get_transform(flip_x=flip_x, flip_y=flip_y)
         else:    
             self.tex = tex_region
         self.__frames = []
-        for img in frames:
-            data_pitch = abs(img._current_pitch)
-            buf = create_string_buffer(len(img._current_data))
-            memmove(buf, img._current_data, len(img._current_data))
-            data = buf.raw
-            rows = [data[i:i + abs(data_pitch)] for i in
-                   range(len(img._current_data)-abs(data_pitch),
-                   -1, -abs(data_pitch))]
-            self.__frames.append(''.join(rows))
+        self.__hash = hash(frames[0])
+        if len(frames) > 1:
+            for img in frames:
+                data_pitch = abs(img._current_pitch)
+                buf = create_string_buffer(len(img._current_data))
+                memmove(buf, img._current_data, len(img._current_data))
+                data = buf.raw
+                rows = [data[i:i + abs(data_pitch)] for i in
+                       range(len(img._current_data)-abs(data_pitch),
+                       -1, -abs(data_pitch))]
+                self.__frames.append(''.join(rows))
         self.__animation = 0
-        self.width = self.tex.width
-        self.height = self.tex.height
-        self.__hash = hash(self.__frames[0])
     
     def next_frame(self):
         self.__animation = (self.__animation + 1) % len(self.__frames)
         return self.__frames[self.__animation]
-    
-    @property
-    def tex_coords(self):
-        return self.tex.tex_coords
-    
-    @property
-    def group(self):
-        return self.texgroup
     
     def __hash__(self):
         return self.__hash
 
     def __eq__(self, other):
         return self.__hash == other.__hash
+    
+    def __len__(self):
+        return len(self.__frames)
+
+class Animation_Object(object):
+    def __init__(self, animation, group=None):
+        if group:
+            self.texgroup = group
+        else:
+            self.texgroup = animation.texgroup
+        self.animation = animation
+    
+    @property
+    def width(self):
+        return self.animation.tex.width
+    
+    @property
+    def height(self):
+        return self.animation.tex.height
+    
+    @property
+    def group(self):
+        return self.texgroup
+    
+    @property
+    def tex_coords(self):
+        return self.animation.tex.tex_coords
 
 class MapSet(object):
     def load_map_object(self, file, order=0):
@@ -103,12 +90,15 @@ class MapSet(object):
         except pyglet.image.atlas.AllocatorException:
             self.current_atlas = pyglet.image.atlas.TextureAtlas(1024, 1024)
             texture_region = self.current_atlas.add(image)
-        group = OrderedTextureGroup(order, self.current_atlas.texture)
+            self.atlases.append(self.current_atlas)
+        group = pyglet.graphics.OrderedGroup(order)
+        group = pyglet.graphics.TextureGroup(self.current_atlas.texture, parent=group)
         
         if group not in self.groups:
             self.groups.append(group)
         
         texture_region.group = self.groups.index(group)
+        texture_region.atlas = self.atlases.index(self.atlases[-1])
         return texture_region
 
     def __init__(self, map_name):
@@ -147,6 +137,8 @@ class MapSet(object):
         
         self.current_atlas = pyglet.image.atlas.TextureAtlas(1024, 1024)
         
+        self.atlases = [self.current_atlas]
+        
         self.groups = []
         
         self.__tiles = {}
@@ -155,7 +147,7 @@ class MapSet(object):
             for x, tile in enumerate(line):
                 if tile[0] == -1: #edge
                     if "edg" not in list(tile_textures.keys()):
-                        tile_textures["edg"] = [self.load_map_object('data/advmap_tiles/edg.def/%d.png'%i, 100) for i in range(36)]
+                        tile_textures["edg"] = [self.load_map_object('data/advmap_tiles/edg.def/%d.png'%i, 1000) for i in range(36)]
                     self.__tiles[x,y] = [tile_textures["edg"][tile[1]]]
                 elif tile[0] == 0: #dirt
                     if "dirttl" not in list(tile_textures.keys()):
@@ -232,10 +224,10 @@ class MapSet(object):
                         textures = [self.load_map_object('data/advmap_tiles/watrtl.def/%d/0.png'%i, 0) for i in range(33)]
                         images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/watrtl.def/%d/%d.png'%(i,j))) for j in range(12)] for i in range(33)]
                         tile_textures["watrtl"] = {
-                            (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
-                            (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
-                            (0,1):[Animation(texture, images[i], flip_y=True) for i, texture in enumerate(textures)],
-                            (1,1):[Animation(texture, images[i], flip_x=True, flip_y=True) for i, texture in enumerate(textures)],
+                            (0,0):[Animation_Object(Animation(texture, images[i])) for i, texture in enumerate(textures)],
+                            (1,0):[Animation_Object(Animation(texture, images[i], flip_x=True)) for i, texture in enumerate(textures)],
+                            (0,1):[Animation_Object(Animation(texture, images[i], flip_y=True)) for i, texture in enumerate(textures)],
+                            (1,1):[Animation_Object(Animation(texture, images[i], flip_x=True, flip_y=True)) for i, texture in enumerate(textures)],
                         }
                     flip_x = (tile[6]>>0)&1
                     flip_y = (tile[6]>>1)&1
@@ -254,10 +246,10 @@ class MapSet(object):
                         textures = [self.load_map_object('data/advmap_tiles/clrrvr.def/%d/0.png'%i, 1) for i in range(13)]
                         images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in range(12)] for i in range(13)]
                         tile_textures["clrrvr"] = {
-                            (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
-                            (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
-                            (0,1):[Animation(texture, images[i], flip_y=True) for i, texture in enumerate(textures)],
-                            (1,1):[Animation(texture, images[i], flip_x=True, flip_y=True) for i, texture in enumerate(textures)],
+                            (0,0):[Animation_Object(Animation(texture, images[i])) for i, texture in enumerate(textures)],
+                            (1,0):[Animation_Object(Animation(texture, images[i], flip_x=True)) for i, texture in enumerate(textures)],
+                            (0,1):[Animation_Object(Animation(texture, images[i], flip_y=True)) for i, texture in enumerate(textures)],
+                            (1,1):[Animation_Object(Animation(texture, images[i], flip_x=True, flip_y=True)) for i, texture in enumerate(textures)],
                         }
                     flip_x = (tile[6]>>2)&1
                     flip_y = (tile[6]>>3)&1
@@ -278,10 +270,10 @@ class MapSet(object):
                         textures = [self.load_map_object('data/advmap_tiles/mudrvr.def/%d/0.png'%i, 1) for i in range(13)]
                         images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in range(12)] for i in range(13)]
                         tile_textures["mudrvr"] = {
-                            (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
-                            (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
-                            (0,1):[Animation(texture, images[i], flip_y=True) for i, texture in enumerate(textures)],
-                            (1,1):[Animation(texture, images[i], flip_x=True, flip_y=True) for i, texture in enumerate(textures)],
+                            (0,0):[Animation_Object(Animation(texture, images[i])) for i, texture in enumerate(textures)],
+                            (1,0):[Animation_Object(Animation(texture, images[i], flip_x=True)) for i, texture in enumerate(textures)],
+                            (0,1):[Animation_Object(Animation(texture, images[i], flip_y=True)) for i, texture in enumerate(textures)],
+                            (1,1):[Animation_Object(Animation(texture, images[i], flip_x=True, flip_y=True)) for i, texture in enumerate(textures)],
                         }
                     flip_x = (tile[6]>>2)&1
                     flip_y = (tile[6]>>3)&1
@@ -291,10 +283,10 @@ class MapSet(object):
                         textures = [self.load_map_object('data/advmap_tiles/lavrvr.def/%d/0.png'%i, 1) for i in range(13)]
                         images = [[pyglet.image.load(None, file=pyglet.resource.file('data/advmap_tiles/clrrvr.def/%d/%d.png'%(i,j))) for j in range(9)] for i in range(13)]
                         tile_textures["lavrvr"] = {
-                            (0,0):[Animation(texture, images[i]) for i, texture in enumerate(textures)],
-                            (1,0):[Animation(texture, images[i], flip_x=True) for i, texture in enumerate(textures)],
-                            (0,1):[Animation(texture, images[i], flip_y=True) for i, texture in enumerate(textures)],
-                            (1,1):[Animation(texture, images[i], flip_x=True, flip_y=True) for i, texture in enumerate(textures)],
+                            (0,0):[Animation_Object(Animation(texture, images[i])) for i, texture in enumerate(textures)],
+                            (1,0):[Animation_Object(Animation(texture, images[i], flip_x=True)) for i, texture in enumerate(textures)],
+                            (0,1):[Animation_Object(Animation(texture, images[i], flip_y=True)) for i, texture in enumerate(textures)],
+                            (1,1):[Animation_Object(Animation(texture, images[i], flip_x=True, flip_y=True)) for i, texture in enumerate(textures)],
                         }
                     flip_x = (tile[6]>>2)&1
                     flip_y = (tile[6]>>3)&1
@@ -349,7 +341,7 @@ class MapSet(object):
                 i += 1
                 if "data/advmap_objects/" + obj["filename"] + "/%d.png" % i not in list(pyglet.resource._default_loader._index.keys()):
                     break;
-            images.append((imgs, order))
+            images.append((imgs, obj["overlay"], order))
         
         self.objects = []
         for imgs in sorted(images, key=lambda i:i[0][0].height, reverse=True):
@@ -358,18 +350,23 @@ class MapSet(object):
             except pyglet.image.atlas.AllocatorException:
                 self.current_atlas = pyglet.image.atlas.TextureAtlas(1024, 1024)
                 texture = self.current_atlas.add(imgs[0][0])
-            group = OrderedTextureGroup(2, self.current_atlas.texture)
-            if group not in self.groups:
-                self.groups.append(group)
-            group = self.groups.index(group)
-            texture.group = group
-            self.objects.append((Animation(texture, imgs[0]), imgs[1]))
+                self.atlases.append(self.current_atlas)
+            texture.group = None
+            texture.atlas = self.atlases.index(self.atlases[-1])
+            self.objects.append((Animation(texture, imgs[0], overlay=imgs[1]), imgs[2]))
         
         self.objects = [i[0] for i in sorted(self.objects, key=lambda i:i[1])]
         
-        self.tunedobj = {}
         for obj in [i for i in h3m_data["tunedobj"] if i["z"]==0]:
-            self.__tiles[obj["x"] + 9,obj["y"] + 8].append(self.objects[obj["id"]])
+            order = obj["y"]
+            if self.objects[obj["id"]].overlay:
+                order = order - self.objects[obj["id"]].tex.height // 32
+            group = pyglet.graphics.OrderedGroup(order)
+            group = pyglet.graphics.TextureGroup(self.atlases[self.objects[obj["id"]].tex.atlas].texture, parent=group)
+            if group not in self.groups:
+                self.groups.append(group)
+            group = self.groups.index(group)
+            self.__tiles[obj["x"] + 9, obj["y"] + 8].append(Animation_Object(self.objects[obj["id"]], group))
     
     def get_tiles(self, tiles_x, tiles_y, div_x, div_y):
         for y in range(tiles_y - 1, -6, -1):
