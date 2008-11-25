@@ -36,3 +36,20 @@ class Interface(object):
             pass
         else:
             return pyglet.event.EVENT_HANDLED
+    
+    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        if IF_LEFT < x < (self.window.width-IF_RIGHT):
+            pass
+        else:
+            return pyglet.event.EVENT_HANDLED
+        if IF_BOTTOM < y < (self.window.height-IF_TOP):
+            pass
+        else:
+            return pyglet.event.EVENT_HANDLED
+    
+    def draw(self):
+        pyglet.gl.glColor4f(1, 0, 1, 1)
+        pyglet.gl.glRectf(0, 0, self.window.width, IF_BOTTOM)
+        pyglet.gl.glRectf(self.window.width-IF_RIGHT, 0, self.window.width, self.window.height)
+        pyglet.gl.glRectf(0, self.window.height-IF_TOP, self.window.width, self.window.height)
+        pyglet.gl.glRectf(0, 0, IF_LEFT, self.window.height)

@@ -127,21 +127,10 @@ class MapView(object):
         self.view_x = mod_x - self.tile_size - (self.tile_size - 32) // 4
         self.view_y = mod_y - self.tile_size - ((self.tile_size - 32) * 3) // 2
     
-    def on_draw(self):
-        pyglet.gl.glClear(pyglet.gl.GL_COLOR_BUFFER_BIT)
-        pyglet.gl.glPushMatrix()
+    def draw(self):
         pyglet.gl.glTranslatef(self.view_x+IF_LEFT, self.view_y+IF_BOTTOM, 0)
         pyglet.gl.glScalef(self.tile_size/32.0, self.tile_size/32.0, 0.0)
         self.batch.draw()
-        pyglet.gl.glPopMatrix()
-        pyglet.gl.glLoadIdentity()
-        pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
-        pyglet.gl.glColor4f(1, 0, 1, 1)
-        pyglet.gl.glRectf(0, 0, self.window.width, IF_BOTTOM)
-        pyglet.gl.glRectf(self.window.width-IF_RIGHT, 0, self.window.width, self.window.height)
-        pyglet.gl.glRectf(0, self.window.height-IF_TOP, self.window.width, self.window.height)
-        pyglet.gl.glRectf(0, 0, IF_LEFT, self.window.height)
-        self.label.draw()
     
     def _move(self, dx, dy):
         # new map position

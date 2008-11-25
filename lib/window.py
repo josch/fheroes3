@@ -29,7 +29,7 @@ class Window(pyglet.window.Window):
         self.fps = pyglet.clock.ClockDisplay()
         pyglet.clock.schedule(lambda dt: None)
     
-    def on_draw(self):
+    def draw(self):
         self.fps.draw()
     
     def on_key_press(self, symbol, modifiers):

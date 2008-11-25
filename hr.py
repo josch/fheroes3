@@ -21,6 +21,7 @@ import pyglet
 from lib.mapset import *
 from lib.interface import *
 from lib.mapview import *
+from lib.render import *
 from lib.window import Window
 import sys
 
@@ -37,7 +38,9 @@ class LoadScreen(object):
         self.label.text = "INITIATING MAPVIEW..."
         mapview = MapView(mapset, self.window)
         interface = Interface(self.window)
+        renderer = Renderer(self.window, mapview, interface)
         self.window.pop_handlers()
+        self.window.push_handlers(renderer)
         self.window.push_handlers(mapview)
         self.window.push_handlers(interface)
         self.window.push_handlers(self.window.keys)

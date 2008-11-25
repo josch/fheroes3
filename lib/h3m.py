@@ -159,7 +159,7 @@ def extract(filename):
                 (exp, ) = struct.unpack("<I", h3m_data.read(4))
             (isSecSkill, ) = struct.unpack("<B", h3m_data.read(1))
             if isSecSkill == 0x01:
-                (skills_count) = struct.unpack("<I", h3m_data.read(4))
+                (skills_count, ) = struct.unpack("<I", h3m_data.read(4))
                 for i in range(skills_count):
                     (skill_id, ) = struct.unpack("<B", h3m_data.read(1))
                     (skill_lvl, ) = struct.unpack("<B", h3m_data.read(1))
