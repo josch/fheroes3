@@ -249,6 +249,14 @@ class MapView(object):
         for i, atlas in enumerate(self.mapset.atlases):
             self.cur_objects[i] = list(set(self.cur_objects[i]))
     
+    def on_key_press(self, symbol, modifiers):
+        if symbol == pyglet.window.key.PLUS and self.tile_size < 32:
+            self.tile_size+=8
+            self._init_view()
+        elif symbol == pyglet.window.key.MINUS and self.tile_size > 16:
+            self.tile_size-=8
+            self._init_view()
+    
     def update(self, dt):
         try:
             if self.window.keys[pyglet.window.key.LCTRL] and \
@@ -272,14 +280,6 @@ class MapView(object):
                     y = 0
                 self.dx += x*8
                 self.dy += y*8
-            elif self.window.keys[pyglet.window.key.PLUS] and \
-                 self.tile_size < 32:
-                self.tile_size+=8
-                self._init_view()
-            elif self.window.keys[pyglet.window.key.MINUS] and \
-                 self.tile_size > 16:
-                self.tile_size-=8
-                self._init_view()
         except KeyError:
             pass
         if self.dx or self.dy:

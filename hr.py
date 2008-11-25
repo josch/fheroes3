@@ -43,7 +43,6 @@ class LoadScreen(object):
         self.window.push_handlers(renderer)
         self.window.push_handlers(mapview)
         self.window.push_handlers(interface)
-        self.window.push_handlers(self.window.keys)
         
 if __name__ == '__main__':
     if len(sys.argv) < 2:
