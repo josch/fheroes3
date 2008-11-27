@@ -198,7 +198,13 @@ def extract(filename):
     for i in range(map_data["object_count"]):
         (length, ) = struct.unpack("<I", h3m_data.read(4))
         filename = h3m_data.read(length)
-        h3m_data.read(6) #passability
+        #the biggest object is 8x6 tiles big - this is an array that maps
+        #passability to each of this tiles with bits 1 passable, 0 not passable
+        #we store a set with all not passable tiles
+        passability = struct.unpack("<6B", h3m_data.read(6)) #passability
+        passability = frozenset([(8-x,6-y) for x in range(8)
+                                           for y, p in enumerate(passability)
+                                           if not (p >> x) & 1])
         h3m_data.read(6) #actions
         h3m_data.read(2) #landscape
         h3m_data.read(2) #land_edit_groups
