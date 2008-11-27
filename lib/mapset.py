@@ -23,7 +23,9 @@ from lib import h3m
 import os
 
 class Animation(object):
-    def __init__(self, tex_region, frames, overlay=False, flip_x=False, flip_y=False):
+    def __init__(self, tex_region, frames, objclass=None, overlay=False,
+                 flip_x=False, flip_y=False):
+        self.objclass = objclass
         self.overlay = overlay
         self.texgroup = tex_region.group
         self.atlas = tex_region.atlas
@@ -341,7 +343,7 @@ class MapSet(object):
                 i += 1
                 if "data/advmap_objects/" + obj["filename"] + "/%d.png" % i not in list(pyglet.resource._default_loader._index.keys()):
                     break;
-            images.append((imgs, obj["overlay"], order))
+            images.append((imgs, obj["class"], obj["overlay"], order))
         
         self.objects = []
         for imgs in sorted(images, key=lambda i:i[0][0].height, reverse=True):
@@ -353,7 +355,7 @@ class MapSet(object):
                 self.atlases.append(self.current_atlas)
             texture.group = None
             texture.atlas = self.atlases.index(self.atlases[-1])
-            self.objects.append((Animation(texture, imgs[0], overlay=imgs[1]), imgs[2]))
+            self.objects.append((Animation(texture, imgs[0], objclass=imgs[1], overlay=imgs[2]), imgs[3]))
         
         self.objects = [i[0] for i in sorted(self.objects, key=lambda i:i[1])]
         
@@ -361,6 +363,18 @@ class MapSet(object):
             order = obj["y"]
             if self.objects[obj["id"]].overlay:
                 order = order - self.objects[obj["id"]].tex.height // 32
+            order *= 2
+            if self.objects[obj["id"]].objclass in [5, 6, 17, 20, 26, 33, 34,
+                                                    36, 42, 53, 54, 59, 62, 65,
+                                                    66, 67, 68, 69, 70, 71, 72,
+                                                    73, 74, 75, 76, 77, 79, 81,
+                                                    83, 87, 88, 89, 90, 91, 93,
+                                                    98, 112, 113, 162, 163,
+                                                    164, 215, 216, 217, 218,
+                                                    219, 220,
+                                                    #here comes new ones:
+                                                    100, 16]:
+                order += 1
             group = pyglet.graphics.OrderedGroup(order)
             group = pyglet.graphics.TextureGroup(self.atlases[self.objects[obj["id"]].tex.atlas].texture, parent=group)
             if group not in self.groups:
@@ -371,7 +385,7 @@ class MapSet(object):
     def get_tiles(self, tiles_x, tiles_y, div_x, div_y):
         for y in range(tiles_y - 1, -6, -1):
             y1 = y * 32
-            for x in range(tiles_x + 5 - 1, -1, -1):
+            for x in range(tiles_x + 4, -1, -1):
                 for obj in self.__tiles.get((x - div_x, div_y - y), []):
                     x1 = x * 32 - obj.width + 32
                     x2 = x1 + obj.width
