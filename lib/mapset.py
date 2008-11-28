@@ -360,21 +360,19 @@ class MapSet(object):
         self.objects = [i[0] for i in sorted(self.objects, key=lambda i:i[1])]
         
         for obj in [i for i in h3m_data["tunedobj"] if i["z"]==0]:
-            order = obj["y"]
+            # order objects by row in which they are placed
+            # 8 levels offset because of objects 6 tiles high
+            order = obj["y"] + 8
+            # if the overlay attribute is set, object is drawn below all
+            # objects ove it - so substract its hight
             if self.objects[obj["id"]].overlay:
                 order = order - self.objects[obj["id"]].tex.height // 32
+            # each row two levels - woods and mountains in the back and the
+            # rest in front
             order *= 2
-            if self.objects[obj["id"]].objclass in [5, 6, 17, 20, 26, 33, 34,
-                                                    36, 42, 53, 54, 59, 62, 65,
-                                                    66, 67, 68, 69, 70, 71, 72,
-                                                    73, 74, 75, 76, 77, 79, 81,
-                                                    83, 87, 88, 89, 90, 91, 93,
-                                                    98, 112, 113, 162, 163,
-                                                    164, 215, 216, 217, 218,
-                                                    219, 220,
-                                                    #here comes new ones:
-                                                    100, 16]:
-                order += 1
+            # put wood and mountains behind other objects on the same level
+            if self.objects[obj["id"]].objclass in [119, 134, 135, 137, 155, 199]:
+                order -= 1
             group = pyglet.graphics.OrderedGroup(order)
             group = pyglet.graphics.TextureGroup(self.atlases[self.objects[obj["id"]].tex.atlas].texture, parent=group)
             if group not in self.groups:
