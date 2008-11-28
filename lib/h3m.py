@@ -495,13 +495,14 @@ def extract(filename):
             else:
                 raise NotImplementedError
             
-            (time_limit, ) = struct.unpack("<I", h3m_data.read(4))
-            (length, ) = struct.unpack("<I", h3m_data.read(4))
-            quest_begin = h3m_data.read(length)
-            (length, ) = struct.unpack("<I", h3m_data.read(4))
-            quest_running = h3m_data.read(length)
-            (length, ) = struct.unpack("<I", h3m_data.read(4))
-            quest_end = h3m_data.read(length)
+            if quest:
+                (time_limit, ) = struct.unpack("<I", h3m_data.read(4))
+                (length, ) = struct.unpack("<I", h3m_data.read(4))
+                quest_begin = h3m_data.read(length)
+                (length, ) = struct.unpack("<I", h3m_data.read(4))
+                quest_running = h3m_data.read(length)
+                (length, ) = struct.unpack("<I", h3m_data.read(4))
+                quest_end = h3m_data.read(length)
         elif map_data["objects"][object_id]["class"] == 36:
             (radius, ) = struct.unpack("<B", h3m_data.read(1))
             h3m_data.read(3) #junk
