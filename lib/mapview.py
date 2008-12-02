@@ -35,6 +35,7 @@ class MapView(object):
                 color=(128, 128, 128, 128),
                 x=self.window.width - 10, y=0,
                 anchor_x='right', anchor_y='bottom')
+        self.animate = True
         pyglet.clock.schedule_interval(self.animate_water, 1/6.0)
         pyglet.clock.schedule_interval(self.update, 1/60.0)
     
@@ -256,6 +257,13 @@ class MapView(object):
         elif symbol == pyglet.window.key.MINUS and self.tile_size > 16:
             self.tile_size-=8
             self._init_view()
+        elif symbol == pyglet.window.key.A:
+            if self.animate:
+                pyglet.clock.unschedule(self.animate_water)
+                self.animate = False
+            else:
+                pyglet.clock.schedule_interval(self.animate_water, 1/6.0)
+                self.animate = True
     
     def update(self, dt):
         try:
