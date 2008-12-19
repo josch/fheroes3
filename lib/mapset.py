@@ -22,6 +22,37 @@ from ctypes import create_string_buffer, memmove
 from lib import h3m
 import os
 
+class OrderedTextureGroup(pyglet.graphics.Group):
+    def __init__(self, order, texture, parent=None):
+        super(OrderedTextureGroup, self).__init__(parent)
+        self.texture = texture
+        self.order = order
+
+    def set_state(self):
+        pyglet.gl.glEnable(self.texture.target)
+        pyglet.gl.glBindTexture(self.texture.target, self.texture.id)
+
+    def unset_state(self):
+        pyglet.gl.glDisable(self.texture.target)
+
+    def __hash__(self):
+        return hash((self.order, self.texture.target, self.texture.id, self.parent))
+
+    def __eq__(self, other):
+        return (self.__class__ is other.__class__ and
+            self.order == other.order and
+            self.texture.target == other.texture.target and
+            self.texture.id == other.texture.id and
+            self.parent == self.parent)
+
+    def __repr__(self):
+        return '%s(order=%d, id=%d)' % (self.__class__.__name__, self.order, self.texture.id)
+        
+    def __cmp__(self, other):
+        if isinstance(other, OrderedTextureGroup):
+            return cmp(self.order, other.order)
+        return -1
+
 class Animation(object):
     def __init__(self, tex_region, frames, objclass=None, overlay=False,
                  flip_x=False, flip_y=False):
@@ -93,8 +124,7 @@ class MapSet(object):
             self.current_atlas = pyglet.image.atlas.TextureAtlas(1024, 1024)
             texture_region = self.current_atlas.add(image)
             self.atlases.append(self.current_atlas)
-        group = pyglet.graphics.OrderedGroup(order)
-        group = pyglet.graphics.TextureGroup(self.current_atlas.texture, parent=group)
+        group = OrderedTextureGroup(order, self.current_atlas.texture)
         
         if group not in self.groups:
             self.groups.append(group)
@@ -373,8 +403,7 @@ class MapSet(object):
             # put wood and mountains behind other objects on the same level
             if self.objects[obj["id"]].objclass in [119, 134, 135, 137, 155, 199]:
                 order -= 1
-            group = pyglet.graphics.OrderedGroup(order)
-            group = pyglet.graphics.TextureGroup(self.atlases[self.objects[obj["id"]].tex.atlas].texture, parent=group)
+            group = OrderedTextureGroup(order, self.atlases[self.objects[obj["id"]].tex.atlas].texture)
             if group not in self.groups:
                 self.groups.append(group)
             group = self.groups.index(group)
