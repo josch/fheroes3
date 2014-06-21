@@ -1,0 +1,1005 @@
+╔ ╦ ╦ ╦ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ╦ ╦ ╦ ╗
+
+    ║ ║ ║ ║ ║ ║ ║ ║
+
+    ║ ║ ║ ║ format description cards for the game Heroes of Might and Magic III ║ ║ ║ ║
+
+    ║ ║ ║ ║ (C) Oleg Antoshkiv 2:4623 / 55.37 @ fidonet.org ║ ║ ║ ║
+
+    ║ ║ ║ ║ (C) Stanislav Ershov (supplement for SoD) ║ ║ ║ ║
+
+    ║ ║ ║ ║ (who will complement add your name here) ║ ║ ║ ║
+
+    ╚ ╩ ╩ ╩ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ╩ ╩ ╩ ╝
+
+
+
+    Warning: file cards (*. h3m) zapakovany archiver GZIP
+
+
+
+
+
+    Legend:
+
+    The first number indicates the size of the element.
+
+
+
+    1 (length of the element in bytes
+
+    ├ ─ 1 (these elements are present only at certain values
+
+    └ ─ 1 (previous element, the number of them also may be different
+
+
+
+    * (Length element is listed in the previous items
+
+    ??? (Appointment is not known, in parentheses default value
+
+   (???) (Change element does not affect the game
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+The main parameters █ █ █ █ card
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+  Description Length (code)
+
+
+
+    4 Id format
+
+            0E 00 00 00 - RoE
+
+            15 00 00 00 - AB
+
+            1C 00 00 00 - SoD
+
+    1??? Set in the (01), when the card is present at least one
+
+        hero.
+
+    4 height and width cards in the boxes (square map)
+
+    1 0-one-card, 1-Two
+
+    4 The name card in bytes
+
+    * Name cards
+
+    4 length description of the map
+
+    * Map Description
+
+    1 The complexity of maps (0-Easy ,1-Normal ,2-Hard ,3-Expert ,4-Impossible)
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+Attributes players █ █ █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    Here are the parameters of all the players in this order:
+
+    Red, Blue, Tan, Green, Orange, Purple, Teal, Pink
+
+
+
+    For each player has a sequence of bytes:
+
+    1 Limiting the level of skill heroes
+
+    1 Can play cheloovek: 1 - YES, 0 - NO
+
+    1 Can play computer: 1 - YES, 0 - NO
+
+    1 Behavior: 0-Random, 1-Warrior, 2-Builder, 3-Explorer
+
+    1 Configured whether what cities owns a player
+
+    2 What types of cities player owns: Bit = 1 - owns, Bit = 0 - does not speak
+
+            Bit0 Castle
+
+            Bit1 Rampart ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╖
+
+            Bit2 Tower │ if the player owns Random Town, ║
+
+            Bit3 Inferno │ it is believed that he owns ║
+
+            Bit4 Necropolis │ all kinds of cities ║
+
+            Bit5 Dungeon ╘ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ╝
+
+            Bit6 Stronghold
+
+            Bit7 Fortress
+
+            Bit8 Conflux
+
+    1 Well in whether a player Random Town: 1-Yes, 0-NET
+
+    1 Chief Town player: 1-DA 0-NET
+
+    ├ ─ 1 Is a hero
+
+    ├ ─ 1 Type cities: FF - Random town, the remaining match 0 - Castle, etc.
+
+    ├ ─ 1 X-coordinate of the castle
+
+    ├ ─ 1 Y-coordinate of the castle
+
+    └ ─ 1 Z-coordinate of the castle
+
+
+
+   
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+Available heroes █ █ █ █ player
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    1 Does Random Hero: 1-Yes, 0-Net
+
+    1 Hero Tip from 00 to 7F (all have 128 types of heroes)
+
+    │ (if FF - hero no) and the following bytes are not available:
+
+    ├ ─ 1 room faces the hero (all have 128 types)
+
+    │ (if FF - mug Standard)
+
+    ├ ─ 4 length of the name hero (if 0, it is not - the standard)
+
+    ├ ─ # name of the hero
+
+    ├ ─ 1 debris (not noticed that he is influenced by that, always either 00 or
+
+    │ other values of Balde)
+
+    └ ─ 4 number of heroes from the player
+
+       └ ─ #
+
+          ├ ─ 1 ID hero
+
+          ├ ─ 4 length of the name hero
+
+          └ ─ # name of the hero
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ Special Victory Condition █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    1 Does Special Victory Condition:
+
+    │ ■ FF - NET
+
+    │ ■ 00 - Acquire a specific artifact
+
+    │ ■ 01 - Accumulate creatures
+
+    │ ■ 02 - Accumulate resources
+
+    │ ■ 03 - Upgrade a specific town
+
+    │ ■ 04 - Build the grail structure
+
+    │ ■ 05 - Defeat a specific Hero
+
+    │ ■ 06 - Capture a specific town
+
+    │ ■ 07 - Defeat a specific monster
+
+    │ ■ 08 - Flag all creature dwelling
+
+    │ ■ 09 - Flag all mines
+
+    │ ■ 0A - Transport a specific artifact
+
+
+
+    ■ Acquire a specific artifact
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net (not)
+
+    ├ ─ 1 Is Available for PC
+
+    └ ─ 1 ID artifact
+
+
+
+    ■ Accumulate creatures
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net
+
+    ├ ─ 2 ID unit
+
+    └ ─ Number 4
+
+
+
+    ■ Accumulate resources
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net
+
+    ├ ─ 1 resource ID: ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╖
+
+    │ │ 0 - Wood 4 - Crystal ║
+
+    │ │ 1 - Mercury 5 - Gems ║
+
+    │ │ 2 - Ore 6 - Gold ║
+
+    │ │ 3 - Sulfur ║
+
+    │ ╘ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ╝
+
+    └ ─ Number 4
+
+
+
+    ■ Upgrade a specific town
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 X-coordinate of the city
+
+    ├ ─ 1 Y-coordinate of the city
+
+    ├ ─ 1 Z-coordinate of the city
+
+    ├ ─ 1 Hall Level: 0-Town, 1-City, 2-Capitol
+
+    └ ─ 1 Castle Level: 0-Fort, 1-Citadel, 2-Castle
+
+
+
+    ■ Build the grail structure
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 X-coordinate of the city
+
+    ├ ─ 1 Y-coordinate of the city
+
+    └ ─ 1 Z-coordinate of the city
+
+
+
+    ■ Defeat a specific Hero
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 X-coordinate hero
+
+    ├ ─ 1 Y-coordinate hero
+
+    └ ─ 1 Z-coordinate hero
+
+
+
+    ■ Capture a specific town
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 X-coordinate of the city
+
+    ├ ─ 1 Y-coordinate of the city
+
+    └ ─ 1 Z-coordinate of the city
+
+
+
+    ■ Defeat a specific monster
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 X-coordinate of the city
+
+    ├ ─ 1 Y-coordinate of the city
+
+    └ ─ 1 Z-coordinate of the city
+
+
+
+    ■ Flag all creature dwelling
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net
+
+    └ ─ 1 Is Available for PC: 1-Yes, 0-Netz
+
+
+
+    ■ Flag all mines
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net
+
+    └ ─ 1 Is Available for PC: 1-Yes, 0-Net
+
+
+
+    ■ Transport a specific artefact
+
+    ├ ─ 1 is also possible to a normal ending: 1-Yes, 0-Net (???)
+
+    ├ ─ 1 Is Available for PC: 1-Yes, 0-Net
+
+    ├ ─ 1 ID artifact
+
+    ├ ─ 1 X-coordinate of the city
+
+    ├ ─ 1 Y-coordinate of the city
+
+    └ ─ 1 Z-coordinate of the city
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ Special loss condition █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    1 Does Special Loss Condition
+
+    │ ■ FF - None
+
+    │ ■ 00 - Lose a specific town
+
+    │ ■ 01 - Lose a specific hero
+
+    │ ■ 02 - Time expires
+
+
+
+    ■ Lose a specific town
+
+    ├ ─ 1 X-coordinate of the city
+
+    ├ ─ 1 Y-coordinate of the city
+
+    └ ─ 1 Z-coordinate of the city
+
+
+
+    ■ Lose a specific hero
+
+    ├ ─ 1 X-coordinate hero
+
+    ├ ─ 1 Y-coordinate hero
+
+    └ ─ 1 Z-coordinate hero
+
+
+
+    ■ Time expires
+
+    └ ─ 2 Days
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ Teams (Teams) █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    1 Number of teams, 0 - no team
+
+    │
+
+    │ If teams do not, the following 8 bytes missing:
+
+    │
+
+    ├ ─ No. 1 team for Red (red)
+
+    ├ ─ No. 1 team for the Blue (blue)
+
+    ├ ─ No. 1 team for the Tan (brown)
+
+    ├ ─ No. 1 team for the Green (Green)
+
+    ├ ─ No. 1 team for the Orange (orange)
+
+    ├ ─ No. 1 team for the Purple (purple)
+
+    ├ ─ No. 1 team for the Teal (blue)
+
+    └ ─ No. 1 team for Pink (pink)
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+Free heroes █ █ █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+   20 bytes. In a game there all 156 types of characters in these 16 bytes
+
+   Provides information about whether this is a hero in the game or not
+
+   (to avoid the simultaneous presence of the same heroes)
+
+
+
+   If the hero prescribed in the "heroes of available players, respectively, then banned
+
+   to hire.
+
+
+
+   In each byte of information on 8 heroes
+
+   (bit = 0 - hero busy bits = 1 - the hero is free)
+
+
+
+     Number of bytes - Tip hero
+
+
+
+              00 - Knight
+
+              01 - Cleric
+
+              02 - Ranger
+
+              03 - Druid
+
+              04 - Alchemist
+
+              05 - Wizard
+
+              06 - Demoniac
+
+              07 - Heretic
+
+              08 - Death Knight
+
+              09 - Necromancer
+
+              0a - Overlord
+
+              0b - Warlock
+
+              0c - Barbarian
+
+              0d - Battle Mage
+
+              0e - Beastmaster
+
+              0f - Witch
+
+              10 - Special Interests
+
+              11 - Elementalist
+
+              12 - ext. heroes (Mutare, Mutare Dreyk, etc.)
+
+              13 - ext. heroes (Mutare, Mutare Dreyk, etc.)
+
+
+
+    4 empty
+
+
+
+    1 Number of configured heroes
+
+    #
+
+    ├ ─ 1 ID hero
+
+    ├ ─ 1 portrait of a hero
+
+    ├ ─ 4 length of the name hero
+
+    ├ ─ # name of the hero
+
+    └ ─ 1 for any players available for recruitment (bit field) FF - for all
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ ?????? █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    31 bytes filled 00 (probably reserved for new versions?)
+
+    (in all standard maps, and campaigns like too)
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ █ █ Random Artifacts
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    18 bytes. The game of all, there are many artifacts:)
+
+    bit = 0 - artifact may fall
+
+    bits = 1 - artifact can not fall
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ Rumors █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    Number 4 Rumors
+
+    │
+
+    ├ ─ 4 The name 1-on Rumor
+
+    ├ ─ # Name 1 st Rumor
+
+    ├ ─ 4 lengths 1 st Rumor
+
+    ├ ─ # 1 st Rumor
+
+    │
+
+    ├ ─ 4 The name of 2-nd Rumor
+
+    ├ ─ # Name 2 nd Rumor
+
+    ├ ─ 4 length 2 nd Rumor
+
+    ├ ─ # 2 nd Rumor
+
+    . ... (and well before the end of all Rumors)
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ █ █ Settings heroes
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+   Extras. set of heroes (experience, primary and secondary skills, artifacts,
+
+   spells)
+
+
+
+   1 byte (repeated 156 times as much as the characters in the game) if 0, then
+
+   │ trail. None bytes)
+
+   ├ ─ 1 set whether Experience
+
+   │ └ ─ 4 experience
+
+   ├ ─ 1 there are secondary skills
+
+   │ └ ─ 4 Number of skills
+
+   │ ├ ─ 1 identifier skill
+
+   │ └ ─ 1 level of skill (0 - DOS, 1 - DWP, 2 - Export)
+
+   ├ ─ 1 there are artifacts
+
+   │ ├ ─ 2 ID artifact to the head (FF FF - min. Default)
+
+   │ ├ ─ 2 shoulders
+
+   │ ├ ─ 2 neck
+
+   │ ├ ─ 2 right hand
+
+   │ ├ ─ 2 left hand
+
+   │ ├ ─ 2 SARS
+
+   │ ├ ─ 2 of the ring
+
+   │ ├ ─ 2 Left kol'co
+
+   │ ├ ─ 2 feet
+
+   │ ├ ─ 2 Miscellaneous 1
+
+   │ ├ ─ 2 Miscellaneous 2
+
+   │ ├ ─ 2 Others 3
+
+   │ ├ ─ 2 different 4
+
+   │ ├ ─ 2 machine 1
+
+   │ ├ ─ 2 machine 2
+
+   │ ├ ─ 2 machine 3
+
+   │ ├ ─ 2 machine 4
+
+   │ ├ ─ 2 magic book
+
+   │ ├ ─ 2 different 5
+
+   │ └ ─ 2 Number of things in backpack
+
+   │ └ ─ #
+
+   │ └ ─ 2 ID art
+
+   ├ ─ 1 set whether biography
+
+   │ └ ─ 4 length biography
+
+   │ └ ─ # biography
+
+   ├ ─ 1 set whether sex character
+
+   │ └ ─ 1 floor (FF - by default, 00 - man, 01 - baba)
+
+   ├ ─ 1 are whether spelly
+
+   │ └ ─ 9 bit field, which is spelly
+
+   └ ─ 1 are whether the primary skills
+
+      ├ ─ 1, meaning an attack
+
+      ├ ─ 1 value protection
+
+      ├ ─ 1 meaning
+
+      └ ─ 1 znachanie knowledge
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ █ █ map land
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    Size: (razmer_karty) ^ 2 * 7
+
+    (Description more)
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ █ █ map underground
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    Size: (razmer_karty) ^ 2 * 7
+
+    If the card is a one, then this section is not available.
+
+    (Description more)
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ Format maps of land and underground █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+   The first byte - codes of:
+
+    00 - Dirt (brown) (0F 3F 50) (RGB color map)
+
+    01 - Sand (light yellow) (8F CF DF)
+
+    02 - Grass (dark green) (00 40 00)
+
+    03 - Snow (white) (C0 C0 B0)
+
+    04 - Swamp (light green) (6F 80 4F)
+
+    05 - Rough (tawny) (30 70 80)
+
+    06 - Subterranean (red) (30 80 00)
+
+    07 - Lava (dark gray) (4F 4F 4F)
+
+    08 - Water (blue) (90 50 0F)
+
+    09 - Rock (black) (00 00 00)
+
+
+
+   The second byte - Patterns of (them very much)
+
+
+
+   Third byte - the type of stream:
+
+    01 - Clear
+
+    02 - Icy
+
+    03 - Muddy
+
+    04 - Lava
+
+
+
+   Fourth bytes - configuration of the river:
+
+                                         ┌ ─ ─ ─ ┐
+
+    00, 01, 02, 03 - 4 variant segment │ ╔ ═ ╡
+
+                             ┌ ─ ╥ ─ ┐ └ ─ ╨ ─ ┘
+
+    04 - segment ╞ ═ ╬ ═ ╡
+
+                             └ ─ ╨ ─ ┘ ┌ ─ ─ ─ ┐
+
+    05, 06 - 2 option segment ╞ ═ ╦ ═ ╡
+
+                                         └ ─ ╨ ─ ┘
+
+                                         ┌ ─ ╥ ─ ┐
+
+    07, 08 - 2 option segment │ ╠ ═ ╡
+
+                                         └ ─ ╨ ─ ┘
+
+                                         ┌ ─ ╥ ─ ┐
+
+    09, 0A - 2 option segment │ ║ │
+
+                                         └ ─ ╨ ─ ┘
+
+                                         ┌ ─ ─ ─ ┐
+
+    0B, 0C - 2 option segment ╞ ═ ═ ═ ╡
+
+                                         └ ─ ─ ─ ┘
+
+
+
+   The fifth byte - the type of roads:
+
+    01 - Dirt
+
+    02 - Gravel
+
+    03 - Cobblestone
+
+
+
+   Sixth bytes - configuration of the road:
+
+                                             ┌ ─ ─ ─ ┐
+
+    00,01,02,03,04,05 - 6 options segment │ ╔ ═ ╡
+
+                                             └ ─ ╨ ─ ┘
+
+                                         ┌ ─ ╥ ─ ┐
+
+    06, 07 - 2 option segment │ ╠ ═ ╡
+
+                                         └ ─ ╨ ─ ┘
+
+                                         ┌ ─ ─ ─ ┐
+
+    08, 09 - 2 option segment ╞ ═ ╦ ═ ╡
+
+                                         └ ─ ╨ ─ ┘
+
+                                         ┌ ─ ╥ ─ ┐
+
+    0A, 0B - 2 option segment │ ║ │
+
+                                         └ ─ ╨ ─ ┘
+
+                                         ┌ ─ ─ ─ ┐
+
+    0C, 0D - 2 option segment ╞ ═ ═ ═ ╡
+
+                                         └ ─ ─ ─ ┘
+
+                             ┌ ─ ─ ─ ┐
+
+    0E - segment │ ║ │
+
+                             └ ─ ╨ ─ ┘
+
+                             ┌ ─ ─ ─ ┐
+
+    0F - segment │ ═ ═ ╡
+
+                             └ ─ ─ ─ ┘
+
+                             ┌ ─ ╥ ─ ┐
+
+    10 - segment ╞ ═ ╬ ═ ╡
+
+                             └ ─ ╨ ─ ┘
+
+
+
+
+
+   Seventh bytes - sets the mirror cells
+
+
+
+    The value of bits: 76543210
+
+                    - CcBbAa (bits labeled '-' can be any)
+
+
+
+    a - includes a mirror image segment of land on the vertical axis
+
+    A - includes a mirror image segment of land on the horizontal axis
+
+        (Not all of the land operates mirror).
+
+    b - includes a mirror image segment of the river on the vertical axis
+
+    B - includes a mirror image segment of the river on the horizontal axis
+
+    c - includes a mirror image segment of road on the vertical axis
+
+    C - includes a mirror image segment of road on the horizontal axis
+
+
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+█ █ Attributes objects standing on the map █ █
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
+
+
+
+    Here are the characteristics of objects standing on the map
+
+    including castles and heroes (except the earth, rivers and roads)
+
+    as well as events (Events) - those that are located on the map, and
+
+    Global Events (set in "Map Specifications")
+
+
+
+    4 Number of sites on the map (immediately propisyvayutsya 2 facility, which
+
+    │ never shown on the map, for which it is not clear)
+
+    └ ─ # (from objects.txt)
+
+       ├ ─ 4 length of Sprite
+
+       ├ ─ # name Sprite
+
+       ├ ─ 6 cells which fields are not passable, back to the lower-right corner
+
+       │ bit = 1 - passable
+
+       │ bit = 0 - not passable
+
+       ├ ─ 6 active cells (overlaid on top of not passable cell)
+
+       │ bit = 1 - cell activated
+
+       │ bit = 0 - not active
+
+       ├ ─ 2 on what type of terrain can be put
+
+       │ bit0 - water
+
+       │ bit1 - lava
+
+       │ bit2 - underground
+
+       │ bit3 - stones
+
+       │ bit4 - swamp
+
+       │ bit5 - snow
+
+       │ bit6 - grass
+
+       │ bit7 - sand
+
+       │ bit8 - dirt
+
+       ├ ─ 2 in a group of landscapes will be added to object to the editor
+
+       │ similar to previous
+
+       ├ ─ 4 class facility
+
+       ├ ─ 4 Units
+
+       ├ ─ 1 team sites (Editor)
+
+       │ 1 - the city of 2 - Monsters 5 - Treasures
+
+       │ 3 - heroes 4 - artifacts
+
+       ├ ─ 1 will be raspolagatsya object on the object or the object
+
+       └ ─ 16 m (still at the site observed 0) this in no objects.txt
+
+
+
+    4 Number of sites on the map
+
+    └ ─ #
+
+       └ ─
+
+
+
+█ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █
