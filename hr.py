@@ -45,15 +45,14 @@ class LoadScreen(object):
         self.window.push_handlers(interface)
         
 if __name__ == '__main__':
+    pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,
+        pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
+    window = Window(width=1024, height=768)
     if len(sys.argv) < 2:
         sys.exit("specify the map you want to load from the map folder\nusage: python hr.py \"A Viking We Shall Go\"")
     
     if not os.path.exists(os.path.join(pyglet.resource._default_loader._script_home,"maps","%s.h3m" % sys.argv[1])):
         sys.exit("cannot find file %s" % os.path.join(pyglet.resource._default_loader._script_home,"maps","%s.h3m" % sys.argv[1]))
-
-    pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,
-        pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
-    window = Window(width=1024, height=768)
     window.push_handlers(LoadScreen(window, sys.argv[1]))
     img = pyglet.resource.image("data/cursors/cradvntr.def/0.png")
     window.set_mouse_cursor(pyglet.window.ImageMouseCursor(img, 0, 40))

@@ -1,0 +1,2979 @@
+# ----------------------------------------------------------------------------
+# pyglet
+# Copyright (c) 2006-2008 Alex Holkner
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions 
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#  * Neither the name of pyglet nor the names of its
+#    contributors may be used to endorse or promote products
+#    derived from this software without specific prior written
+#    permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# $Id:$
+
+'''Low-level graphics rendering.
+
+This module provides an efficient low-level abstraction over OpenGL.  It gives
+very good performance for rendering OpenGL primitives; far better than the
+typical immediate-mode usage and, on modern graphics cards, better than using
+display lists in many cases.  The module is used internally by other areas of
+pyglet.  
+
+See the Programming Guide for details on how to use this graphics API.
+
+Batches and groups
+==================
+
+Without even needing to understand the details on how to draw primitives with
+the graphics API, developers can make use of `Batch` and `Group`
+objects to improve performance of sprite and text rendering.
+
+The `Sprite`, `Label` and `TextLayout` classes all accept a ``batch`` and
+``group`` parameter in their constructors.  A batch manages a set of objects
+that will be drawn all at once, and a group describes the manner in which an
+object is drawn.
+
+The following example creates a batch, adds two sprites to the batch, and then
+draws the entire batch::
+    
+    batch = pyglet.graphics.Batch()
+    car = pyglet.sprite.Sprite(car_image, batch=batch)
+    boat = pyglet.sprite.Sprite(boat_image, batch=batch)
+    
+    def on_draw()
+        batch.draw()
+
+Drawing a complete batch is much faster than drawing the items in the batch
+individually, especially when those items belong to a common group.  
+
+Groups describe the OpenGL state required for an item.  This is for the most
+part managed by the sprite and text classes, however you can also use groups
+to ensure items are drawn in a particular order.  For example,  the following
+example adds a background sprite which is guaranteed to be drawn before the
+car and the boat::
+
+    batch = pyglet.graphics.Batch()
+    background = pyglet.graphics.OrderedGroup(0)
+    foreground = pyglet.graphics.OrderedGroup(1)
+
+    background = pyglet.sprite.Sprite(background_image, 
+                                      batch=batch, group=background)
+    car = pyglet.sprite.Sprite(car_image, batch=batch, group=foreground)
+    boat = pyglet.sprite.Sprite(boat_image, batch=batch, group=foreground)
+    
+    def on_draw()
+        batch.draw()
+
+It's preferable to manage sprites and text objects within as few batches as
+possible.  If the drawing of sprites or text objects need to be interleaved
+with other drawing that does not use the graphics API, multiple batches will
+be required.
+
+Data item parameters
+====================
+
+Many of the functions and methods in this module accept any number of ``data``
+parameters as their final parameters.  In the documentation these are notated
+as ``*data`` in the formal parameter list.
+
+A data parameter describes a vertex attribute format and an optional sequence
+to initialise that attribute.  Examples of common attribute formats are:
+
+``"v3f"``
+    Vertex position, specified as three floats.
+``"c4B"``
+    Vertex color, specifed as four unsigned bytes.
+``"t2f"``
+    Texture coordinate, specified as two floats.
+
+See `pyglet.graphics.vertexattribute` for the complete syntax of the vertex
+format string.
+
+When no initial data is to be given, the data item is just the format string.
+For example, the following creates a 2 element vertex list with position and
+color attributes::
+
+    vertex_list = pyglet.graphics.vertex_list(2, 'v2f', 'c4B')
+
+When initial data is required, wrap the format string and the initial data in
+a tuple, for example::
+
+    vertex_list = pyglet.graphics.vertex_list(2, 
+                                              ('v2f', (0.0, 1.0, 1.0, 0.0)),
+                                              ('c4B', (255, 255, 255, 255) * 2))
+
+Drawing modes
+=============
+
+Methods in this module that accept a ``mode`` parameter will accept any value
+in the OpenGL drawing mode enumeration; for example, ``GL_POINTS``,
+``GL_LINES``, ``GL_TRIANGLES``, etc.  
+
+Because of the way the graphics API renders multiple primitives with shared
+state, ``GL_POLYGON``, ``GL_LINE_LOOP`` and ``GL_TRIANGLE_FAN`` cannot be used
+--- the results are undefined.
+
+When using ``GL_LINE_STRIP``, ``GL_TRIANGLE_STRIP`` or ``GL_QUAD_STRIP`` care
+must be taken to insert degenrate vertices at the beginning and end of each
+vertex list.  For example, given the vertex list::
+
+    A, B, C, D
+
+the correct vertex list to provide the vertex list is::
+
+    A, A, B, C, D, D
+
+Alternatively, the ``NV_primitive_restart`` extension can be used if it is
+present.  This also permits use of ``GL_POLYGON``, ``GL_LINE_LOOP`` and
+``GL_TRIANGLE_FAN``.   Unfortunatley the extension is not provided by older
+video drivers, and requires indexed vertex lists.
+
+:since: pyglet 1.1
+'''
+
+__docformat__ = 'restructuredtext'
+__version__ = '$Id: $'
+
+import ctypes
+
+import pyglet
+from pyglet.gl import *
+import ctypes
+import re
+
+_debug_graphics_batch = pyglet.options['debug_graphics_batch']
+
+def draw(size, mode, *data):
+    '''Draw a primitive immediately.
+
+    :Parameters:
+        `size` : int
+            Number of vertices given
+        `mode` : int
+            OpenGL drawing mode, e.g. ``GL_TRIANGLES``
+        `data` : data items
+            Attribute formats and data.  See the module summary for 
+            details.
+
+    '''
+    glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+
+    buffers = []
+    for format, array in data:
+        attribute = vertexattribute.create_attribute(format)
+        assert size == len(array) // attribute.count, \
+            'Data for %s is incorrect length' % format
+        buffer = vertexbuffer.create_mappable_buffer(
+            size * attribute.stride, vbo=False)
+
+        attribute.set_region(buffer, 0, size, array)
+        attribute.enable()
+        attribute.set_pointer(buffer.ptr)
+        buffers.append(buffer)
+
+    glDrawArrays(mode, 0, size)
+    glFlush()
+        
+    glPopClientAttrib()
+
+def draw_indexed(size, mode, indices, *data):
+    '''Draw a primitive with indexed vertices immediately.
+
+    :Parameters:
+        `size` : int
+            Number of vertices given
+        `mode` : int
+            OpenGL drawing mode, e.g. ``GL_TRIANGLES``
+        `indices` : sequence of int
+            Sequence of integers giving indices into the vertex list.
+        `data` : data items
+            Attribute formats and data.  See the module summary for details.
+
+    '''
+    glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+
+    buffers = []
+    for format, array in data:
+        attribute = vertexattribute.create_attribute(format)
+        assert size == len(array) // attribute.count, \
+            'Data for %s is incorrect length' % format
+        buffer = vertexbuffer.create_mappable_buffer(
+            size * attribute.stride, vbo=False)
+
+        attribute.set_region(buffer, 0, size, array)
+        attribute.enable()
+        attribute.set_pointer(buffer.ptr)
+        buffers.append(buffer)
+
+    if size <= 0xff:
+        index_type = GL_UNSIGNED_BYTE
+        index_c_type = ctypes.c_ubyte
+    elif size <= 0xffff:
+        index_type = GL_UNSIGNED_SHORT
+        index_c_type = ctypes.c_ushort
+    else:
+        index_type = GL_UNSIGNED_INT
+        index_c_type = ctypes.c_uint
+
+    index_array = (index_c_type * len(indices))(*indices)
+    glDrawElements(mode, len(indices), index_type, index_array)
+    glFlush()
+    
+    glPopClientAttrib()
+
+def _parse_data(data):
+    '''Given a list of data items, returns (formats, initial_arrays).'''
+    assert data, 'No attribute formats given'
+
+    # Return tuple (formats, initial_arrays).
+    formats = []
+    initial_arrays = []
+    for i, format in enumerate(data):
+        if isinstance(format, tuple):
+            format, array = format
+            initial_arrays.append((i, array))
+        formats.append(format)
+    formats = tuple(formats)
+    return formats, initial_arrays
+
+def _get_default_batch():
+    shared_object_space = gl.current_context.object_space
+    try:
+        return shared_object_space.pyglet_graphics_default_batch
+    except AttributeError:
+        shared_object_space.pyglet_graphics_default_batch = Batch()
+        return shared_object_space.pyglet_graphics_default_batch
+
+def vertex_list(count, *data):
+    '''Create a `VertexList` not associated with a batch, group or mode.
+
+    :Parameters:
+        `count` : int
+            The number of vertices in the list.
+        `data` : data items
+            Attribute formats and initial data for the vertex list.  See the
+            module summary for details.
+
+    :rtype: `VertexList`
+    '''
+    # Note that mode=0 because the default batch is never drawn: vertex lists
+    # returned from this function are drawn directly by the app.
+    return _get_default_batch().add(count, 0, None, *data)
+
+def vertex_list_indexed(count, indices, *data):
+    '''Create an `IndexedVertexList` not associated with a batch, group or mode.
+
+    :Parameters:
+        `count` : int
+            The number of vertices in the list.
+        `indices` : sequence
+            Sequence of integers giving indices into the vertex list.
+        `data` : data items
+            Attribute formats and initial data for the vertex list.  See the
+            module summary for details.
+
+    :rtype: `IndexedVertexList`
+    '''
+    # Note that mode=0 because the default batch is never drawn: vertex lists
+    # returned from this function are drawn directly by the app.
+    return _get_default_batch().add_indexed(count, 0, None, indices, *data)
+
+class Batch(object):
+    '''Manage a collection of vertex lists for batched rendering.
+
+    Vertex lists are added to a `Batch` using the `add` and `add_indexed`
+    methods.  An optional group can be specified along with the vertex list,
+    which gives the OpenGL state required for its rendering.  Vertex lists
+    with shared mode and group are allocated into adjacent areas of memory and
+    sent to the graphics card in a single operation.
+
+    Call `VertexList.delete` to remove a vertex list from the batch.
+    '''
+    def __init__(self):
+        '''Create a graphics batch.'''
+        # Mapping to find domain.  
+        # group -> (attributes, mode, indexed) -> domain
+        self.group_map = {}
+
+        # Mapping of group to list of children.
+        self.group_children = {}
+
+        # List of top-level groups
+        self.top_groups = []
+
+        self._draw_list = []
+        self._draw_list_dirty = False
+
+    def add(self, count, mode, group, *data):
+        '''Add a vertex list to the batch.
+
+        :Parameters:
+            `count` : int
+                The number of vertices in the list.
+            `mode` : int
+                OpenGL drawing mode enumeration; for example, one of
+                ``GL_POINTS``, ``GL_LINES``, ``GL_TRIANGLES``, etc.
+                See the module summary for additional information.
+            `group` : `Group`
+                Group of the vertex list, or ``None`` if no group is required.
+            `data` : data items
+                Attribute formats and initial data for the vertex list.  See
+                the module summary for details.
+
+        :rtype: `VertexList`
+        '''
+        formats, initial_arrays = _parse_data(data)
+        domain = self._get_domain(False, mode, group, formats)
+        domain.__formats = formats
+            
+        # Create vertex list and initialize
+        vlist = domain.create(count)
+        for i, array in initial_arrays:
+            vlist._set_attribute_data(i, array)
+
+        return vlist
+
+    def add_indexed(self, count, mode, group, indices, *data):
+        '''Add an indexed vertex list to the batch.
+
+        :Parameters:
+            `count` : int
+                The number of vertices in the list.
+            `mode` : int
+                OpenGL drawing mode enumeration; for example, one of
+                ``GL_POINTS``, ``GL_LINES``, ``GL_TRIANGLES``, etc.
+                See the module summary for additional information.
+            `group` : `Group`
+                Group of the vertex list, or ``None`` if no group is required.
+            `indices` : sequence
+                Sequence of integers giving indices into the vertex list.
+            `data` : data items
+                Attribute formats and initial data for the vertex list.  See
+                the module summary for details.
+
+        :rtype: `IndexedVertexList`
+        '''
+        formats, initial_arrays = _parse_data(data)
+        domain = self._get_domain(True, mode, group, formats)
+            
+        # Create vertex list and initialize
+        vlist = domain.create(count, len(indices))
+        start = vlist.start
+        vlist._set_index_data(map(lambda i: i + start, indices))
+        for i, array in initial_arrays:
+            vlist._set_attribute_data(i, array)
+
+        return vlist 
+
+    def migrate(self, vertex_list, mode, group, batch):
+        '''Migrate a vertex list to another batch and/or group.
+
+        `vertex_list` and `mode` together identify the vertex list to migrate.
+        `group` and `batch` are new owners of the vertex list after migration.  
+
+        The results are undefined if `mode` is not correct or if `vertex_list`
+        does not belong to this batch (they are not checked and will not
+        necessarily throw an exception immediately).
+
+        `batch` can remain unchanged if only a group change is desired.
+        
+        :Parameters:
+            `vertex_list` : `VertexList`
+                A vertex list currently belonging to this batch.
+            `mode` : int
+                The current GL drawing mode of the vertex list.
+            `group` : `Group`
+                The new group to migrate to.
+            `batch` : `Batch`
+                The batch to migrate to (or the current batch).
+
+        '''
+        formats = vertex_list.domain.__formats
+        domain = batch._get_domain(False, mode, group, formats)
+        vertex_list.migrate(domain)
+
+    def _get_domain(self, indexed, mode, group, formats):
+        if group is None:
+            group = null_group
+        
+        # Batch group
+        if group not in self.group_map:
+            self._add_group(group)
+
+        domain_map = self.group_map[group]
+
+        # Find domain given formats, indices and mode
+        key = (formats, mode, indexed)
+        try:
+            domain = domain_map[key]
+        except KeyError:
+            # Create domain
+            if indexed:
+                domain = vertexdomain.create_indexed_domain(*formats)
+            else:
+                domain = create_domain(*formats)
+            domain_map[key] = domain
+            self._draw_list_dirty = True 
+
+        return domain
+
+    def _add_group(self, group):
+        self.group_map[group] = {}
+        if group.parent is None:
+            self.top_groups.append(group)
+        else:
+            if group.parent not in self.group_map:
+                self._add_group(group.parent)
+            if group.parent not in self.group_children:
+                self.group_children[group.parent] = []
+            self.group_children[group.parent].append(group)
+        self._draw_list_dirty = True
+
+    def _update_draw_list(self):
+        '''Visit group tree in preorder and create a list of bound methods
+        to call.
+        '''
+
+        def visit(group):
+            draw_list = []
+
+            # Draw domains using this group
+            domain_map = self.group_map[group]
+            for (formats, mode, indexed), domain in list(domain_map.items()):
+                # Remove unused domains from batch
+                if domain._is_empty():
+                    del domain_map[(formats, mode, indexed)]
+                    continue
+                draw_list.append(
+                    (lambda d, m: lambda: d.draw(m))(domain, mode))
+
+            # Sort and visit child groups of this group
+            children = self.group_children.get(group)
+            if children:
+                children.sort()
+                for child in list(children):
+                    draw_list.extend(visit(child))
+
+            if children or domain_map:
+                return [group.set_state] + draw_list + [group.unset_state]
+            else:
+                # Remove unused group from batch
+                del self.group_map[group]
+                if group.parent:
+                    self.group_children[group.parent].remove(group)
+                try:
+                    del self.group_children[group]
+                except KeyError:
+                    pass
+                try:
+                    self.top_groups.remove(group)
+                except ValueError:
+                    pass
+                return []
+
+        self._draw_list = []
+
+        self.top_groups.sort()
+        for group in list(self.top_groups):
+            self._draw_list.extend(visit(group))
+
+        self._draw_list_dirty = False
+
+        if _debug_graphics_batch:
+            self._dump_draw_list()
+
+    def _dump_draw_list(self):
+        def dump(group, indent=''):
+            print indent, 'Begin group', group
+            domain_map = self.group_map[group]
+            for _, domain in domain_map.items():
+                print indent, '  ', domain
+                for start, size in zip(*domain.allocator.get_allocated_regions()):
+                    print indent, '    ', 'Region %d size %d:' % (start, size)
+                    for key, attribute in domain.attribute_names.items():
+                        print indent, '      ',
+                        try:
+                            region = attribute.get_region(attribute.buffer,
+                                                          start, size)
+                            print key, region.array[:]
+                        except:
+                            print key, '(unmappable)'
+            for child in self.group_children.get(group, ()):
+                dump(child, indent + '  ')
+            print indent, 'End group', group
+
+        print 'Draw list for %r:' % self
+        for group in self.top_groups:
+            dump(group)
+        
+    def draw(self):
+        '''Draw the batch.
+        '''
+        if self._draw_list_dirty:
+            self._update_draw_list()
+
+        for func in self._draw_list:
+            func()
+
+    def draw_subset(self, vertex_lists):
+        '''Draw only some vertex lists in the batch.
+
+        The use of this method is highly discouraged, as it is quite
+        inefficient.  Usually an application can be redesigned so that batches
+        can always be drawn in their entirety, using `draw`.
+
+        The given vertex lists must belong to this batch; behaviour is
+        undefined if this condition is not met.
+
+        :Parameters:
+            `vertex_lists` : sequence of `VertexList` or `IndexedVertexList`
+                Vertex lists to draw.
+
+        '''
+        # Horrendously inefficient.
+        def visit(group):
+            group.set_state()
+
+            # Draw domains using this group
+            domain_map = self.group_map[group]
+            for (_, mode, _), domain in domain_map.items():
+                for list in vertex_lists:
+                    if list.domain is domain:
+                        list.draw(mode)
+
+            # Sort and visit child groups of this group
+            children = self.group_children.get(group)
+            if children:
+                children.sort()
+                for child in children:
+                    visit(child)
+
+            group.unset_state()
+
+        self.top_groups.sort()
+        for group in self.top_groups:
+            visit(group)
+
+class Group(object):
+    '''Group of common OpenGL state.
+
+    Before a vertex list is rendered, its group's OpenGL state is set; as are
+    that state's ancestors' states.  This can be defined arbitrarily on
+    subclasses; the default state change has no effect, and groups vertex
+    lists only in the order in which they are drawn.
+    '''
+    def __init__(self, parent=None):
+        '''Create a group.
+
+        :Parameters:
+            `parent` : `Group`
+                Group to contain this group; its state will be set before this
+                state's.
+
+        '''
+        self.parent = parent
+
+    def set_state(self):
+        '''Apply the OpenGL state change.  
+        
+        The default implementation does nothing.'''
+        pass
+
+    def unset_state(self):
+        '''Repeal the OpenGL state change.
+        
+        The default implementation does nothing.'''
+        pass
+
+    def set_state_recursive(self):
+        '''Set this group and its ancestry.
+
+        Call this method if you are using a group in isolation: the
+        parent groups will be called in top-down order, with this class's
+        `set` being called last.
+        '''
+        if self.parent:
+            self.parent.set_state_recursive()
+        self.set_state()
+
+    def unset_state_recursive(self):
+        '''Unset this group and its ancestry.
+
+        The inverse of `set_state_recursive`.
+        '''
+        self.unset_state()
+        if self.parent:
+            self.parent.unset_state_recursive()
+
+class NullGroup(Group):
+    '''The default group class used when ``None`` is given to a batch.
+
+    This implementation has no effect.
+    '''
+    pass
+
+#: The default group.
+#:
+#: :type: `Group`
+null_group = NullGroup()
+
+class TextureGroup(Group):
+    '''A group that enables and binds a texture.
+
+    Texture groups are equal if their textures' targets and names are equal.
+    '''
+    # Don't use this, create your own group classes that are more specific.
+    # This is just an example.
+    def __init__(self, texture, parent=None):
+        '''Create a texture group.
+
+        :Parameters:
+            `texture` : `Texture`
+                Texture to bind.
+            `parent` : `Group`
+                Parent group.
+
+        '''
+        super(TextureGroup, self).__init__(parent)
+        self.texture = texture
+
+    def set_state(self):
+        glEnable(self.texture.target)
+        glBindTexture(self.texture.target, self.texture.id)
+
+    def unset_state(self):
+        glDisable(self.texture.target)
+
+    def __hash__(self):
+        return hash((self.texture.target, self.texture.id, self.parent))
+
+    def __eq__(self, other):
+        return (self.__class__ is other.__class__ and
+            self.texture.target == other.texture.target and
+            self.texture.id == other.texture.id and
+            self.parent == other.parent)
+
+    def __repr__(self):
+        return '%s(id=%d)' % (self.__class__.__name__, self.texture.id)
+
+class OrderedGroup(Group):
+    '''A group with partial order.
+
+    Ordered groups with a common parent are rendered in ascending order of
+    their ``order`` field.  This is a useful way to render multiple layers of
+    a scene within a single batch.
+    '''
+    # This can be useful as a top-level group, or as a superclass for other
+    # groups that need to be ordered.
+    #
+    # As a top-level group it's useful because graphics can be composited in a
+    # known order even if they don't know about each other or share any known
+    # group.
+    def __init__(self, order, parent=None):
+        '''Create an ordered group.
+
+        :Parameters:
+            `order` : int
+                Order of this group.
+            `parent` : `Group`
+                Parent of this group.
+
+        '''
+        super(OrderedGroup, self).__init__(parent)
+        self.order = order
+
+    def __cmp__(self, other):
+        if isinstance(other, OrderedGroup):
+            return cmp(self.order, other.order)
+        return -1
+
+    def __eq__(self, other):
+        return (self.__class__ is other.__class__ and
+            self.order == other.order and
+            self.parent == other.parent)
+
+    def __hash__(self):
+        return hash((self.order, self.parent))
+
+    def __repr__(self):
+        return '%s(%d)' % (self.__class__.__name__, self.order)
+
+# ----------------------------------------------------------------------------
+# pyglet
+# Copyright (c) 2006-2008 Alex Holkner
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions 
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#  * Neither the name of pyglet nor the names of its
+#    contributors may be used to endorse or promote products
+#    derived from this software without specific prior written
+#    permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# $Id:$
+
+'''Memory allocation algorithm for vertex arrays and buffers.
+
+The region allocator is used to allocate vertex indices within a vertex
+domain's  multiple buffers.  ("Buffer" refers to any abstract buffer presented
+by `pyglet.graphics.vertexbuffer`.
+ 
+The allocator will at times request more space from the buffers. The current
+policy is to double the buffer size when there is not enough room to fulfil an
+allocation.  The buffer is never resized smaller.
+
+The allocator maintains references to free space only; it is the caller's
+responsibility to mantain the allocated regions.
+'''
+
+__docformat__ = 'restructuredtext'
+__version__ = '$Id: $'
+ 
+# Common cases:
+# -regions will be the same size (instances of same object, e.g. sprites)
+# -regions will not usually be resized (only exception is text)
+# -alignment of 4 vertices (glyphs, sprites, images, ...)
+#
+# Optimise for:
+# -keeping regions adjacent, reduce the number of entries in glMultiDrawArrays
+# -finding large blocks of allocated regions quickly (for drawing)
+# -finding block of unallocated space is the _uncommon_ case!
+#
+# Decisions:
+# -don't over-allocate regions to any alignment -- this would require more
+#  work in finding the allocated spaces (for drawing) and would result in
+#  more entries in glMultiDrawArrays
+# -don't move blocks when they truncate themselves.  try not to allocate the
+#  space they freed too soon (they will likely need grow back into it later,
+#  and growing will usually require a reallocation).
+# -allocator does not track individual allocated regions.  Trusts caller
+#  to provide accurate (start, size) tuple, which completely describes
+#  a region from the allocator's point of view.
+# -this means that compacting is probably not feasible, or would be hideously
+#  expensive
+
+class AllocatorMemoryException(Exception):
+    '''The buffer is not large enough to fulfil an allocation.
+
+    Raised by `Allocator` methods when the operation failed due to lack of
+    buffer space.  The buffer should be increased to at least
+    requested_capacity and then the operation retried (guaranteed to
+    pass second time).
+    '''
+
+    def __init__(self, requested_capacity):
+        self.requested_capacity = requested_capacity
+
+class Allocator(object):
+    '''Buffer space allocation implementation.'''
+    def __init__(self, capacity):
+        '''Create an allocator for a buffer of the specified capacity.
+
+        :Parameters:
+            `capacity` : int
+                Maximum size of the buffer.
+
+        '''
+        self.capacity = capacity
+
+        # Allocated blocks.  Start index and size in parallel lists.
+        #
+        # # = allocated, - = free
+        #
+        #  0  3 5        15   20  24                    40
+        # |###--##########-----####----------------------|
+        #
+        # starts = [0, 5, 20]
+        # sizes = [3, 10, 4]
+        #
+        # To calculate free blocks:
+        # for i in range(0, len(starts)):
+        #   free_start[i] = starts[i] + sizes[i]
+        #   free_size[i] =  starts[i+1] - free_start[i]
+        # free_size[i+1] = self.capacity - free_start[-1]
+
+        self.starts = []
+        self.sizes = []
+
+    def set_capacity(self, size):
+        '''Resize the maximum buffer size.
+        
+        The capaity cannot be reduced.
+
+        :Parameters:
+            `size` : int
+                New maximum size of the buffer.
+
+        '''
+        assert size > self.capacity
+        self.capacity = size
+
+    def alloc(self, size):
+        '''Allocate memory in the buffer.
+
+        Raises `AllocatorMemoryException` if the allocation cannot be
+        fulfilled.
+
+        :Parameters:
+            `size` : int
+                Size of region to allocate.
+               
+        :rtype: int
+        :return: Starting index of the allocated region.
+        '''
+        assert size > 0
+
+        # return start
+        # or raise AllocatorMemoryException
+
+        if not self.starts:
+            if size <= self.capacity:
+                self.starts.append(0)
+                self.sizes.append(size)
+                return 0
+            else:
+                raise AllocatorMemoryException(size)
+
+        # Allocate in a free space
+        free_start = self.starts[0] + self.sizes[0]
+        for i, (alloc_start, alloc_size) in \
+                enumerate(zip(self.starts[1:], self.sizes[1:])):
+            # Danger!  
+            # i is actually index - 1 because of slicing above...
+            # starts[i]   points to the block before this free space
+            # starts[i+1] points to the block after this free space, and is
+            #             always valid.
+            free_size = alloc_start - free_start
+            if free_size == size:
+                # Merge previous block with this one (removing this free space)
+                self.sizes[i] += free_size + alloc_size
+                del self.starts[i+1]
+                del self.sizes[i+1]
+                return free_start
+            elif free_size > size:
+                # Increase size of previous block to intrude into this free
+                # space.
+                self.sizes[i] += size
+                return free_start
+            free_start = alloc_start + alloc_size
+        
+        # Allocate at end of capacity
+        free_size = self.capacity - free_start
+        if free_size >= size:
+            self.sizes[-1] += size
+            return free_start
+        
+        raise AllocatorMemoryException(self.capacity + size - free_size)
+
+    def realloc(self, start, size, new_size):
+        '''Reallocate a region of the buffer.
+
+        This is more efficient than separate `dealloc` and `alloc` calls, as
+        the region can often be resized in-place.
+
+        Raises `AllocatorMemoryException` if the allocation cannot be
+        fulfilled.
+
+        :Parameters:
+            `start` : int
+                Current starting index of the region.
+            `size` : int
+                Current size of the region.
+            `new_size` : int
+                New size of the region.
+
+        '''
+        assert size > 0 and new_size > 0
+        
+        # return start
+        # or raise AllocatorMemoryException
+
+        # Truncation is the same as deallocating the tail cruft
+        if new_size < size:
+            self.dealloc(start + new_size, size - new_size)
+            return start
+            
+        # Find which block it lives in
+        for i, (alloc_start, alloc_size) in \
+                enumerate(zip(*(self.starts, self.sizes))):
+            p = start - alloc_start
+            if p >= 0 and size <= alloc_size - p:
+                break
+        if not (p >= 0 and size <= alloc_size - p):
+            print zip(self.starts, self.sizes)
+            print start, size, new_size
+            print p, alloc_start, alloc_size
+        assert p >= 0 and size <= alloc_size - p, 'Region not allocated'
+
+        if size == alloc_size - p:
+            # Region is at end of block.  Find how much free space is after
+            # it.
+            is_final_block = i == len(self.starts) - 1
+            if not is_final_block:
+                free_size = self.starts[i + 1] - (start + size)
+            else:
+                free_size = self.capacity - (start + size)
+
+            # TODO If region is an entire block being an island in free space, 
+            # can possibly extend in both directions.
+
+            if free_size == new_size - size and not is_final_block:
+                # Merge block with next (region is expanded in place to
+                # exactly fill the free space)
+                self.sizes[i] += free_size + self.sizes[i + 1]
+                del self.starts[i + 1]
+                del self.sizes[i + 1]
+                return start
+            elif free_size > new_size - size:
+                # Expand region in place
+                self.sizes[i] += new_size - size
+                return start
+
+        # The block must be repositioned.  Dealloc then alloc.
+        
+        # But don't do this!  If alloc fails, we've already silently dealloc'd
+        # the original block.
+        #   self.dealloc(start, size)
+        #   return self.alloc(new_size)
+
+        # It must be alloc'd first.  We're not missing an optimisation 
+        # here, because if freeing the block would've allowed for the block to 
+        # be placed in the resulting free space, one of the above in-place
+        # checks would've found it.
+        result = self.alloc(new_size)
+        self.dealloc(start, size)
+        return result
+
+    def dealloc(self, start, size):
+        '''Free a region of the buffer.
+
+        :Parameters:
+            `start` : int
+                Starting index of the region.
+            `size` : int
+                Size of the region.
+
+        '''
+        assert size > 0
+        assert self.starts
+        
+        # Find which block needs to be split
+        for i, (alloc_start, alloc_size) in \
+                enumerate(zip(*(self.starts, self.sizes))):
+            p = start - alloc_start
+            if p >= 0 and size <= alloc_size - p:
+                break
+        
+        # Assert we left via the break
+        assert p >= 0 and size <= alloc_size - p, 'Region not allocated'
+
+        if p == 0 and size == alloc_size:
+            # Remove entire block
+            del self.starts[i]
+            del self.sizes[i]
+        elif p == 0:
+            # Truncate beginning of block
+            self.starts[i] += size
+            self.sizes[i] -= size
+        elif size == alloc_size - p:
+            # Truncate end of block
+            self.sizes[i] -= size
+        else:
+            # Reduce size of left side, insert block at right side
+            #   $ = dealloc'd block, # = alloc'd region from same block
+            #
+            #   <------8------>
+            #   <-5-><-6-><-7->
+            #   1    2    3    4
+            #   #####$$$$$#####
+            #
+            #   1 = alloc_start
+            #   2 = start
+            #   3 = start + size
+            #   4 = alloc_start + alloc_size
+            #   5 = start - alloc_start = p
+            #   6 = size
+            #   7 = {8} - ({5} + {6}) = alloc_size - (p + size)
+            #   8 = alloc_size
+            #
+            self.sizes[i] = p
+            self.starts.insert(i + 1, start + size)
+            self.sizes.insert(i + 1, alloc_size - (p + size))
+
+    def get_allocated_regions(self):
+        '''Get a list of (aggregate) allocated regions.
+
+        The result of this method is ``(starts, sizes)``, where ``starts`` is
+        a list of starting indices of the regions and ``sizes`` their
+        corresponding lengths.
+
+        :rtype: (list, list)
+        '''
+        # return (starts, sizes); len(starts) == len(sizes)
+        return (self.starts, self.sizes)
+
+    def get_fragmented_free_size(self):
+        '''Returns the amount of space unused, not including the final
+        free block.
+
+        :rtype: int
+        '''
+        if not self.starts:
+            return 0
+
+        # Variation of search for free block.
+        total_free = 0
+        free_start = self.starts[0] + self.sizes[0]
+        for i, (alloc_start, alloc_size) in \
+                enumerate(zip(self.starts[1:], self.sizes[1:])):
+            total_free += alloc_start - free_start
+            free_start = alloc_start + alloc_size
+
+        return total_free
+
+    def get_free_size(self):
+        '''Return the amount of space unused.
+        
+        :rtype: int
+        '''
+        if not self.starts:
+            return self.capacity
+
+        free_end = self.capacity - (self.starts[-1] + self.sizes[-1])
+        return self.get_fragmented_free_size() + free_end
+
+    def get_usage(self):
+        '''Return fraction of capacity currently allocated.
+        
+        :rtype: float
+        '''
+        return 1. - self.get_free_size() / float(self.capacity)
+
+    def get_fragmentation(self):
+        '''Return fraction of free space that is not expandable.
+        
+        :rtype: float
+        '''
+        free_size = self.get_free_size()
+        if free_size == 0:
+            return 0.
+        return self.get_fragmented_free_size() / float(self.get_free_size())
+
+    def _is_empty(self):
+        return not self.starts
+
+    def __str__(self):
+        return 'allocs=' + repr(zip(self.starts, self.sizes))
+
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, str(self))
+
+# ----------------------------------------------------------------------------
+# pyglet
+# Copyright (c) 2006-2008 Alex Holkner
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions 
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#  * Neither the name of pyglet nor the names of its
+#    contributors may be used to endorse or promote products
+#    derived from this software without specific prior written
+#    permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# $Id:$
+
+'''Access byte arrays as arrays of vertex attributes.
+
+Use `create_attribute` to create an attribute accessor given a simple format
+string.  Alternatively, the classes may be constructed directly.
+
+Attribute format strings
+========================
+
+An attribute format string specifies the format of a vertex attribute.  Format
+strings are accepted by the `create_attribute` function as well as most
+methods in the `pyglet.graphics` module.
+
+Format strings have the following (BNF) syntax::
+
+    attribute ::= ( name | index 'g' 'n'? ) count type
+
+``name`` describes the vertex attribute, and is one of the following
+constants for the predefined attributes:
+
+``c``
+    Vertex color
+``e``
+    Edge flag
+``f``
+    Fog coordinate
+``n``
+    Normal vector
+``s``
+    Secondary color
+``t``
+    Texture coordinate
+``v``
+    Vertex coordinate
+
+You can alternatively create a generic indexed vertex attribute by
+specifying its index in decimal followed by the constant ``g``.  For
+example, ``0g`` specifies the generic vertex attribute with index 0.
+If the optional constant ``n`` is present after the ``g``, the
+attribute is normalised to the range ``[0, 1]`` or ``[-1, 1]`` within
+the range of the data type.
+
+``count`` gives the number of data components in the attribute.  For
+example, a 3D vertex position has a count of 3.  Some attributes
+constrain the possible counts that can be used; for example, a normal
+vector must have a count of 3.
+
+``type`` gives the data type of each component of the attribute.  The
+following types can be used:
+
+``b``
+    ``GLbyte``
+``B``
+    ``GLubyte``
+``s``
+    ``GLshort``
+``S``
+    ``GLushort``
+``i``
+    ``GLint``
+``I``
+    ``GLuint``
+``f``
+    ``GLfloat``
+``d``
+    ``GLdouble``
+
+Some attributes constrain the possible data types; for example,
+normal vectors must use one of the signed data types.  The use of
+some data types, while not illegal, may have severe performance
+concerns.  For example, the use of ``GLdouble`` is discouraged,
+and colours should be specified with ``GLubyte``.
+
+Whitespace is prohibited within the format string.
+
+Some examples follow:
+
+``v3f``
+    3-float vertex position
+``c4b``
+    4-byte colour
+``1eb``
+    Edge flag
+``0g3f``
+    3-float generic vertex attribute 0
+``1gn1i``
+    Integer generic vertex attribute 1, normalized to [-1, 1]
+``2gn4B``
+    4-byte generic vertex attribute 2, normalized to [0, 1] (because
+    the type is unsigned)
+
+'''
+
+__docformat__ = 'restructuredtext'
+__version__ = '$Id: $'
+
+_c_types = {
+    GL_BYTE: ctypes.c_byte,
+    GL_UNSIGNED_BYTE: ctypes.c_ubyte,
+    GL_SHORT: ctypes.c_short,
+    GL_UNSIGNED_SHORT: ctypes.c_ushort,
+    GL_INT: ctypes.c_int,
+    GL_UNSIGNED_INT: ctypes.c_uint,
+    GL_FLOAT: ctypes.c_float,
+    GL_DOUBLE: ctypes.c_double,
+}
+
+_gl_types = {
+    'b': GL_BYTE,
+    'B': GL_UNSIGNED_BYTE,
+    's': GL_SHORT,
+    'S': GL_UNSIGNED_SHORT,
+    'i': GL_INT,
+    'I': GL_UNSIGNED_INT,
+    'f': GL_FLOAT,
+    'd': GL_DOUBLE,
+}
+
+_attribute_format_re = re.compile(r'''
+    (?P<name>
+       [cefnstv] | 
+       (?P<generic_index>[0-9]+) g
+       (?P<generic_normalized>n?))
+    (?P<count>[1234])
+    (?P<type>[bBsSiIfd])
+''', re.VERBOSE)
+
+_attribute_cache = {}
+
+def _align(v, align):
+    return ((v - 1) & ~(align - 1)) + align
+
+def interleave_attributes(attributes):
+    '''Interleave attribute offsets.
+
+    Adjusts the offsets and strides of the given attributes so that
+    they are interleaved.  Alignment constraints are respected.
+
+    :Parameters:
+        `attributes` : sequence of `AbstractAttribute`
+            Attributes to interleave in-place.
+
+    '''
+    stride = 0
+    max_size = 0
+    for attribute in attributes:
+        stride = _align(stride, attribute.align)    
+        attribute.offset = stride
+        stride += attribute.size
+        max_size = max(max_size, attribute.size)
+    stride = _align(stride, max_size)
+    for attribute in attributes:
+        attribute.stride = stride
+
+def serialize_attributes(count, attributes):
+    '''Serialize attribute offsets.
+    
+    Adjust the offsets of the given attributes so that they are
+    packed serially against each other for `count` vertices.
+
+    :Parameters:
+        `count` : int
+            Number of vertices.
+        `attributes` : sequence of `AbstractAttribute`
+            Attributes to serialze in-place.
+
+    '''
+    offset = 0
+    for attribute in attributes:
+        offset = _align(offset, attribute.align)
+        attribute.offset = offset
+        offset += count * attribute.stride
+
+def create_attribute(format):
+    '''Create a vertex attribute description from a format string.
+    
+    The initial stride and offset of the attribute will be 0.
+
+    :Parameters:
+        `format` : str
+            Attribute format string.  See the module summary for details.
+
+    :rtype: `AbstractAttribute`
+    '''
+    try:
+        cls, args = _attribute_cache[format]
+        return cls(*args)
+    except KeyError:
+        pass
+
+    match = _attribute_format_re.match(format)
+    assert match, 'Invalid attribute format %r' % format
+    count = int(match.group('count'))
+    gl_type = _gl_types[match.group('type')]
+    generic_index = match.group('generic_index')
+    if generic_index:
+        normalized = match.group('generic_normalized')
+        attr_class = GenericAttribute
+        args = int(generic_index), normalized, count, gl_type
+    else:
+        name = match.group('name')
+        attr_class = _attribute_classes[name]
+        if attr_class._fixed_count:
+            assert count == attr_class._fixed_count, \
+                'Attributes named "%s" must have count of %d' % (
+                    name, attr_class._fixed_count)
+            args = (gl_type,)
+        else:
+            args = (count, gl_type)
+    
+    _attribute_cache[format] = attr_class, args
+    return attr_class(*args)
+
+class AbstractAttribute(object):
+    '''Abstract accessor for an attribute in a mapped buffer.
+    '''
+    
+    _fixed_count = None
+    
+    def __init__(self, count, gl_type):
+        '''Create the attribute accessor.
+
+        :Parameters:
+            `count` : int
+                Number of components in the attribute.
+            `gl_type` : int
+                OpenGL type enumerant; for example, ``GL_FLOAT``
+
+        '''
+        assert count in (1, 2, 3, 4), 'Component count out of range'
+        self.gl_type = gl_type
+        self.c_type = _c_types[gl_type]
+        self.count = count
+        self.align = ctypes.sizeof(self.c_type)
+        self.size = count * self.align
+        self.stride = self.size
+        self.offset = 0
+
+    def enable(self):
+        '''Enable the attribute using ``glEnableClientState``.'''
+        raise NotImplementedError('abstract')
+
+    def set_pointer(self, offset):
+        '''Setup this attribute to point to the currently bound buffer at
+        the given offset.
+
+        ``offset`` should be based on the currently bound buffer's ``ptr``
+        member.
+
+        :Parameters:
+            `offset` : int
+                Pointer offset to the currently bound buffer for this
+                attribute.
+
+        '''
+        raise NotImplementedError('abstract')
+
+    def get_region(self, buffer, start, count):
+        '''Map a buffer region using this attribute as an accessor.
+
+        The returned region can be modified as if the buffer was a contiguous
+        array of this attribute (though it may actually be interleaved or
+        otherwise non-contiguous).
+
+        The returned region consists of a contiguous array of component
+        data elements.  For example, if this attribute uses 3 floats per
+        vertex, and the `count` parameter is 4, the number of floats mapped
+        will be ``3 * 4 = 12``.
+
+        :Parameters:
+            `buffer` : `AbstractMappable`
+                The buffer to map.
+            `start` : int
+                Offset of the first vertex to map.
+            `count` : int
+                Number of vertices to map
+
+        :rtype: `AbstractBufferRegion`
+        '''
+        byte_start = self.stride * start
+        byte_size = self.stride * count
+        array_count = self.count * count
+        if self.stride == self.size:
+            # non-interleaved
+            ptr_type = ctypes.POINTER(self.c_type * array_count)
+            return buffer.get_region(byte_start, byte_size, ptr_type)
+        else:
+            # interleaved
+            byte_start += self.offset
+            byte_size -= self.offset
+            elem_stride = self.stride // ctypes.sizeof(self.c_type)
+            elem_offset = self.offset // ctypes.sizeof(self.c_type)
+            ptr_type = ctypes.POINTER(
+                self.c_type * (count * elem_stride - elem_offset))
+            region = buffer.get_region(byte_start, byte_size, ptr_type)
+            return vertexbuffer.IndirectArrayRegion(
+                region, array_count, self.count, elem_stride)
+
+    def set_region(self, buffer, start, count, data):
+        '''Set the data over a region of the buffer.
+
+        :Parameters:
+            `buffer` : AbstractMappable`
+                The buffer to modify.
+            `start` : int
+                Offset of the first vertex to set.
+            `count` : int
+                Number of vertices to set.
+            `data` : sequence
+                Sequence of data components.
+
+        '''
+        if self.stride == self.size:
+            # non-interleaved
+            byte_start = self.stride * start
+            byte_size = self.stride * count
+            array_count = self.count * count
+            data = (self.c_type * array_count)(*data)
+            buffer.set_data_region(data, byte_start, byte_size)
+        else:
+            # interleaved
+            region = self.get_region(buffer, start, count)
+            region[:] = data
+
+class ColorAttribute(AbstractAttribute):
+    '''Color vertex attribute.'''
+
+    plural = 'colors'
+    
+    def __init__(self, count, gl_type):
+        assert count in (3, 4), 'Color attributes must have count of 3 or 4'
+        super(ColorAttribute, self).__init__(count, gl_type)
+
+    def enable(self):
+        glEnableClientState(GL_COLOR_ARRAY)
+    
+    def set_pointer(self, pointer):
+        glColorPointer(self.count, self.gl_type, self.stride,
+                       self.offset + pointer)
+
+class EdgeFlagAttribute(AbstractAttribute):
+    '''Edge flag attribute.'''
+
+    plural = 'edge_flags'
+    _fixed_count = 1
+    
+    def __init__(self, gl_type):
+        assert gl_type in (GL_BYTE, GL_UNSIGNED_BYTE, GL_BOOL), \
+            'Edge flag attribute must have boolean type'
+        super(EdgeFlagAttribute, self).__init__(1, gl_type)
+
+    def enable(self):
+        glEnableClientState(GL_EDGE_FLAG_ARRAY)
+    
+    def set_pointer(self, pointer):
+        glEdgeFlagPointer(self.stride, self.offset + pointer)
+
+class FogCoordAttribute(AbstractAttribute):
+    '''Fog coordinate attribute.'''
+
+    plural = 'fog_coords'
+    
+    def __init__(self, count, gl_type):
+        super(FogCoordAttribute, self).__init__(count, gl_type)
+
+    def enable(self):
+        glEnableClientState(GL_FOG_COORD_ARRAY)
+    
+    def set_pointer(self, pointer):
+        glFogCoordPointer(self.count, self.gl_type, self.stride,
+                          self.offset + pointer)
+
+class NormalAttribute(AbstractAttribute):
+    '''Normal vector attribute.'''
+
+    plural = 'normals'
+    _fixed_count = 3
+
+    def __init__(self, gl_type):
+        assert gl_type in (GL_BYTE, GL_SHORT, GL_INT, GL_FLOAT, GL_DOUBLE), \
+            'Normal attribute must have signed type'
+        super(NormalAttribute, self).__init__(3, gl_type)
+
+    def enable(self):
+        glEnableClientState(GL_NORMAL_ARRAY)
+    
+    def set_pointer(self, pointer):
+        glNormalPointer(self.gl_type, self.stride, self.offset + pointer)
+
+class SecondaryColorAttribute(AbstractAttribute):
+    '''Secondary color attribute.'''
+
+    plural = 'secondary_colors'
+    _fixed_count = 3
+
+    def __init__(self, gl_type):
+        super(SecondaryColorAttribute, self).__init__(3, gl_type)
+
+    def enable(self):
+        glEnableClientState(GL_SECONDARY_COLOR_ARRAY)
+    
+    def set_pointer(self, pointer):
+        glSecondaryColorPointer(3, self.gl_type, self.stride,
+                                self.offset + pointer)
+
+class TexCoordAttribute(AbstractAttribute):
+    '''Texture coordinate attribute.'''
+
+    plural = 'tex_coords'
+
+    def __init__(self, count, gl_type):
+        assert gl_type in (GL_SHORT, GL_INT, GL_INT, GL_FLOAT, GL_DOUBLE), \
+            'Texture coord attribute must have non-byte signed type'
+        super(TexCoordAttribute, self).__init__(count, gl_type)
+
+    def enable(self):
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+    
+    def set_pointer(self, pointer):
+        glTexCoordPointer(self.count, self.gl_type, self.stride,
+                       self.offset + pointer)
+
+class VertexAttribute(AbstractAttribute):
+    '''Vertex coordinate attribute.'''
+
+    plural = 'vertices'
+
+    def __init__(self, count, gl_type):
+        assert count > 1, \
+            'Vertex attribute must have count of 2, 3 or 4'
+        assert gl_type in (GL_SHORT, GL_INT, GL_INT, GL_FLOAT, GL_DOUBLE), \
+            'Vertex attribute must have signed type larger than byte'
+        super(VertexAttribute, self).__init__(count, gl_type)
+
+    def enable(self):
+        glEnableClientState(GL_VERTEX_ARRAY)
+
+    def set_pointer(self, pointer):
+        glVertexPointer(self.count, self.gl_type, self.stride,
+                        self.offset + pointer)
+
+class GenericAttribute(AbstractAttribute):
+    '''Generic vertex attribute, used by shader programs.'''
+
+    def __init__(self, index, normalized, count, gl_type):
+        self.normalized = bool(normalized)
+        self.index = index
+        super(GenericAttribute, self).__init__(count, gl_type)
+
+    def enable(self):
+        glEnableVertexAttribArray(self.index)
+
+    def set_pointer(self, pointer):
+        glVertexAttribPointer(self.index, self.count, self.gl_type,
+                              self.normalized, self.stride, 
+                              self.offset + pointer)
+
+_attribute_classes = {
+    'c': ColorAttribute,
+    'e': EdgeFlagAttribute,
+    'f': FogCoordAttribute,
+    'n': NormalAttribute,
+    's': SecondaryColorAttribute,
+    't': TexCoordAttribute,
+    'v': VertexAttribute,
+}
+
+# ----------------------------------------------------------------------------
+# pyglet
+# Copyright (c) 2006-2008 Alex Holkner
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#  * Neither the name of pyglet nor the names of its
+#    contributors may be used to endorse or promote products
+#    derived from this software without specific prior written
+#    permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# $Id:$
+
+'''Byte abstractions of Vertex Buffer Objects and vertex arrays.
+
+Use `create_buffer` or `create_mappable_buffer` to create a Vertex Buffer
+Object, or a vertex array if VBOs are not supported by the current context.
+
+Buffers can optionally be created "mappable" (incorporating the
+`AbstractMappable` mix-in).  In this case the buffer provides a ``get_region``
+method which provides the most efficient path for updating partial data within
+the buffer.
+'''
+
+__docformat__ = 'restructuredtext'
+__version__ = '$Id: $'
+
+_enable_vbo = pyglet.options['graphics_vbo']
+
+# Enable workaround permanently if any VBO is created on a context that has
+# this workaround.  (On systems with multiple contexts where one is
+# unaffected, the workaround will be enabled unconditionally on all of the
+# contexts anyway.  This is completely unlikely anyway).
+_workaround_vbo_finish = False
+
+def create_buffer(size,
+                  target=GL_ARRAY_BUFFER,
+                  usage=GL_DYNAMIC_DRAW,
+                  vbo=True):
+    '''Create a buffer of vertex data.
+
+    :Parameters:
+        `size` : int
+            Size of the buffer, in bytes
+        `target` : int
+            OpenGL target buffer
+        `usage` : int
+            OpenGL usage constant
+        `vbo` : bool
+            True if a `VertexBufferObject` should be created if the driver
+            supports it; otherwise only a `VertexArray` is created.
+
+    :rtype: `AbstractBuffer`
+    '''
+    from pyglet import gl
+    if (vbo and
+        gl_info.have_version(1, 5) and
+        _enable_vbo and
+        not gl.current_context._workaround_vbo):
+        return VertexBufferObject(size, target, usage)
+    else:
+        return VertexArray(size)
+
+def create_mappable_buffer(size,
+                           target=GL_ARRAY_BUFFER,
+                           usage=GL_DYNAMIC_DRAW,
+                           vbo=True):
+    '''Create a mappable buffer of vertex data.
+
+    :Parameters:
+        `size` : int
+            Size of the buffer, in bytes
+        `target` : int
+            OpenGL target buffer
+        `usage` : int
+            OpenGL usage constant
+        `vbo` : bool
+            True if a `VertexBufferObject` should be created if the driver
+            supports it; otherwise only a `VertexArray` is created.
+
+    :rtype: `AbstractBuffer` with `AbstractMappable`
+    '''
+    from pyglet import gl
+    if (vbo and
+        gl_info.have_version(1, 5) and
+        _enable_vbo and
+        not gl.current_context._workaround_vbo):
+        return MappableVertexBufferObject(size, target, usage)
+    else:
+        return VertexArray(size)
+
+class AbstractBuffer(object):
+    '''Abstract buffer of byte data.
+
+    :Ivariables:
+        `size` : int
+            Size of buffer, in bytes
+        `ptr` : int
+            Memory offset of the buffer, as used by the ``glVertexPointer``
+            family of functions
+        `target` : int
+            OpenGL buffer target, for example ``GL_ARRAY_BUFFER``
+        `usage` : int
+            OpenGL buffer usage, for example ``GL_DYNAMIC_DRAW``
+
+    '''
+
+    ptr = 0
+    size = 0
+
+    def bind(self):
+        '''Bind this buffer to its OpenGL target.'''
+        raise NotImplementedError('abstract')
+
+    def unbind(self):
+        '''Reset the buffer's OpenGL target.'''
+        raise NotImplementedError('abstract')
+
+    def set_data(self, data):
+        '''Set the entire contents of the buffer.
+
+        :Parameters:
+            `data` : sequence of int or ctypes pointer
+                The byte array to set.
+
+        '''
+        raise NotImplementedError('abstract')
+
+    def set_data_region(self, data, start, length):
+        '''Set part of the buffer contents.
+
+        :Parameters:
+            `data` : sequence of int or ctypes pointer
+                The byte array of data to set
+            `start` : int
+                Offset to start replacing data
+            `length` : int
+                Length of region to replace
+
+        '''
+        raise NotImplementedError('abstract')
+
+    def map(self, invalidate=False):
+        '''Map the entire buffer into system memory.
+
+        The mapped region must be subsequently unmapped with `unmap` before
+        performing any other operations on the buffer.
+
+        :Parameters:
+            `invalidate` : bool
+                If True, the initial contents of the mapped block need not
+                reflect the actual contents of the buffer.
+
+        :rtype: ``POINTER(ctypes.c_ubyte)``
+        :return: Pointer to the mapped block in memory
+        '''
+        raise NotImplementedError('abstract')
+
+    def unmap(self):
+        '''Unmap a previously mapped memory block.'''
+        raise NotImplementedError('abstract')
+
+    def resize(self, size):
+        '''Resize the buffer to a new size.
+
+        :Parameters:
+            `size` : int
+                New size of the buffer, in bytes
+
+        '''
+
+    def delete(self):
+        '''Delete this buffer, reducing system resource usage.'''
+        raise NotImplementedError('abstract')
+
+class AbstractMappable(object):
+    def get_region(self, start, size, ptr_type):
+        '''Map a region of the buffer into a ctypes array of the desired
+        type.  This region does not need to be unmapped, but will become
+        invalid if the buffer is resized.
+
+        Note that although a pointer type is required, an array is mapped.
+        For example::
+
+            get_region(0, ctypes.sizeof(c_int) * 20, ctypes.POINTER(c_int * 20))
+
+        will map bytes 0 to 80 of the buffer to an array of 20 ints.
+
+        Changes to the array may not be recognised until the region's
+        `AbstractBufferRegion.invalidate` method is called.
+
+        :Parameters:
+            `start` : int
+                Offset into the buffer to map from, in bytes
+            `size` : int
+                Size of the buffer region to map, in bytes
+            `ptr_type` : ctypes pointer type
+                Pointer type describing the array format to create
+
+        :rtype: `AbstractBufferRegion`
+        '''
+        raise NotImplementedError('abstract')
+
+class VertexArray(AbstractBuffer, AbstractMappable):
+    '''A ctypes implementation of a vertex array.
+
+    Many of the methods on this class are effectively no-op's, such as `bind`,
+    `unbind`, `map`, `unmap` and `delete`; they exist in order to present
+    a consistent interface with `VertexBufferObject`.
+
+    This buffer type is also mappable, and so `get_region` can be used.
+    '''
+
+    def __init__(self, size):
+        self.size = size
+
+        self.array = (ctypes.c_byte * size)()
+        self.ptr = ctypes.cast(self.array, ctypes.c_void_p).value
+
+    def bind(self):
+        pass
+
+    def unbind(self):
+        pass
+
+    def set_data(self, data):
+        ctypes.memmove(self.ptr, data, self.size)
+
+    def set_data_region(self, data, start, length):
+        ctypes.memmove(self.ptr + start, data, length)
+
+    def map(self, invalidate=False):
+        return self.array
+
+    def unmap(self):
+        pass
+
+    def get_region(self, start, size, ptr_type):
+        array = ctypes.cast(self.ptr + start, ptr_type).contents
+        return VertexArrayRegion(array)
+
+    def delete(self):
+        pass
+
+    def resize(self, size):
+        array = (ctypes.c_byte * size)()
+        ctypes.memmove(array, self.array, min(size, self.size))
+        self.size = size
+        self.array = array
+        self.ptr = ctypes.cast(self.array, ctypes.c_void_p).value
+
+
+class VertexBufferObject(AbstractBuffer):
+    '''Lightweight representation of an OpenGL VBO.
+
+    The data in the buffer is not replicated in any system memory (unless it
+    is done so by the video driver).  While this can improve memory usage and
+    possibly performance, updates to the buffer are relatively slow.
+
+    This class does not implement `AbstractMappable`, and so has no
+    ``get_region`` method.  See `MappableVertexBufferObject` for a VBO class
+    that does implement ``get_region``.
+    '''
+
+    def __init__(self, size, target, usage):
+        self.size = size
+        self.target = target
+        self.usage = usage
+        self._context = pyglet.gl.current_context
+
+        id = GLuint()
+        glGenBuffers(1, id)
+        self.id = id.value
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        glBindBuffer(target, self.id)
+        glBufferData(target, self.size, None, self.usage)
+        glPopClientAttrib()
+
+        global _workaround_vbo_finish
+        if pyglet.gl.current_context._workaround_vbo_finish:
+            _workaround_vbo_finish = True
+
+    def bind(self):
+        glBindBuffer(self.target, self.id)
+
+    def unbind(self):
+        glBindBuffer(self.target, 0)
+
+    def set_data(self, data):
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        glBindBuffer(self.target, self.id)
+        glBufferData(self.target, self.size, data, self.usage)
+        glPopClientAttrib()
+
+    def set_data_region(self, data, start, length):
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        glBindBuffer(self.target, self.id)
+        glBufferSubData(self.target, start, length, data)
+        glPopClientAttrib()
+
+    def map(self, invalidate=False):
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        glBindBuffer(self.target, self.id)
+        if invalidate:
+            glBufferData(self.target, self.size, None, self.usage)
+        ptr = ctypes.cast(glMapBuffer(self.target, GL_WRITE_ONLY),
+                          ctypes.POINTER(ctypes.c_byte * self.size)).contents
+        glPopClientAttrib()
+        return ptr
+
+    def unmap(self):
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        glUnmapBuffer(self.target)
+        glPopClientAttrib()
+
+    def __del__(self):
+        try:
+            if self.id is not None:
+                self._context.delete_buffer(self.id)
+        except:
+            pass
+
+    def delete(self):
+        id = GLuint(self.id)
+        glDeleteBuffers(1, id)
+        self.id = None
+
+    def resize(self, size):
+        # Map, create a copy, then reinitialize.
+        temp = (ctypes.c_byte * size)()
+
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        glBindBuffer(self.target, self.id)
+        data = glMapBuffer(self.target, GL_READ_ONLY)
+        ctypes.memmove(temp, data, min(size, self.size))
+        glUnmapBuffer(self.target)
+
+        self.size = size
+        glBufferData(self.target, self.size, temp, self.usage)
+        glPopClientAttrib()
+
+class MappableVertexBufferObject(VertexBufferObject, AbstractMappable):
+    '''A VBO with system-memory backed store.
+
+    Updates to the data via `set_data`, `set_data_region` and `map` will be
+    held in local memory until `bind` is called.  The advantage is that fewer
+    OpenGL calls are needed, increasing performance.
+
+    There may also be less performance penalty for resizing this buffer.
+
+    Updates to data via `map` are committed immediately.
+    '''
+    def __init__(self, size, target, usage):
+        super(MappableVertexBufferObject, self).__init__(size, target, usage)
+        self.data = (ctypes.c_byte * size)()
+        self.data_ptr = ctypes.cast(self.data, ctypes.c_void_p).value
+        self._dirty_min = sys.maxint
+        self._dirty_max = 0
+
+    def bind(self):
+        # Commit pending data
+        super(MappableVertexBufferObject, self).bind()
+        size = self._dirty_max - self._dirty_min
+        if size > 0:
+            if size == self.size:
+                glBufferData(self.target, self.size, self.data, self.usage)
+            else:
+                glBufferSubData(self.target, self._dirty_min, size,
+                    self.data_ptr + self._dirty_min)
+            self._dirty_min = sys.maxint
+            self._dirty_max = 0
+
+    def set_data(self, data):
+        super(MappableVertexBufferObject, self).set_data(data)
+        ctypes.memmove(self.data, data, self.size)
+        self._dirty_min = 0
+        self._dirty_max = self.size
+
+    def set_data_region(self, data, start, length):
+        ctypes.memmove(self.data_ptr + start, data, length)
+        self._dirty_min = min(start, self._dirty_min)
+        self._dirty_max = max(start + length, self._dirty_max)
+
+    def map(self, invalidate=False):
+        self._dirty_min = 0
+        self._dirty_max = self.size
+        return self.data
+
+    def unmap(self):
+        pass
+
+    def get_region(self, start, size, ptr_type):
+        array = ctypes.cast(self.data_ptr + start, ptr_type).contents
+        return VertexBufferObjectRegion(self, start, start + size, array)
+
+    def resize(self, size):
+        data = (ctypes.c_byte * size)()
+        ctypes.memmove(data, self.data, min(size, self.size))
+        self.data = data
+        self.data_ptr = ctypes.cast(self.data, ctypes.c_void_p).value
+
+        self.size = size
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        glBindBuffer(self.target, self.id)
+        glBufferData(self.target, self.size, self.data, self.usage)
+        glPopClientAttrib()
+
+        self._dirty_min = sys.maxint
+        self._dirty_max = 0
+
+class AbstractBufferRegion(object):
+    '''A mapped region of a buffer.
+
+    Buffer regions are obtained using `AbstractMappable.get_region`.
+
+    :Ivariables:
+        `array` : ctypes array
+            Array of data, of the type and count requested by ``get_region``.
+
+    '''
+    def invalidate(self):
+        '''Mark this region as changed.
+
+        The buffer may not be updated with the latest contents of the
+        array until this method is called.  (However, it may not be updated
+        until the next time the buffer is used, for efficiency).
+        '''
+        pass
+
+class VertexBufferObjectRegion(AbstractBufferRegion):
+    '''A mapped region of a VBO.'''
+    def __init__(self, buffer, start, end, array):
+        self.buffer = buffer
+        self.start = start
+        self.end = end
+        self.array = array
+
+    def invalidate(self):
+        buffer = self.buffer
+        buffer._dirty_min = min(buffer._dirty_min, self.start)
+        buffer._dirty_max = max(buffer._dirty_max, self.end)
+
+class VertexArrayRegion(AbstractBufferRegion):
+    '''A mapped region of a vertex array.
+
+    The `invalidate` method is a no-op but is provided in order to present
+    a consistent interface with `VertexBufferObjectRegion`.
+    '''
+    def __init__(self, array):
+        self.array = array
+
+class IndirectArrayRegion(AbstractBufferRegion):
+    '''A mapped region in which data elements are not necessarily contiguous.
+
+    This region class is used to wrap buffer regions in which the data
+    must be accessed with some stride.  For example, in an interleaved buffer
+    this region can be used to access a single interleaved component as if the
+    data was contiguous.
+    '''
+    def __init__(self, region, size, component_count, component_stride):
+        '''Wrap a buffer region.
+
+        Use the `component_count` and `component_stride` parameters to specify
+        the data layout of the encapsulated region.  For example, if RGBA
+        data is to be accessed as if it were packed RGB, ``component_count``
+        would be set to 3 and ``component_stride`` to 4.  If the region
+        contains 10 RGBA tuples, the ``size`` parameter is ``3 * 10 = 30``.
+
+        :Parameters:
+            `region` : `AbstractBufferRegion`
+                The region with interleaved data
+            `size` : int
+                The number of elements that this region will provide access to.
+            `component_count` : int
+                The number of elements that are contiguous before some must
+                be skipped.
+            `component_stride` : int
+                The number of elements of interleaved data separating
+                the contiguous sections.
+
+        '''
+        self.region = region
+        self.size = size
+        self.count = component_count
+        self.stride = component_stride
+        self.array = self
+
+    def __repr__(self):
+        return 'IndirectArrayRegion(size=%d, count=%d, stride=%d)' % (
+            self.size, self.count, self.stride)
+
+    def __getitem__(self, index):
+        count = self.count
+        if not isinstance(index, slice):
+            elem = index // count
+            j = index % count
+            return self.region.array[elem * self.stride + j]
+
+        start = index.start or 0
+        stop = index.stop
+        step = index.step or 1
+        if start < 0:
+            start = self.size + start
+        if stop is None:
+            stop = self.size
+        elif stop < 0:
+            stop = self.size + stop
+
+        assert step == 1 or step % count == 0, \
+            'Step must be multiple of component count'
+
+        data_start = (start // count) * self.stride + start % count
+        data_stop = (stop // count) * self.stride + stop % count
+        data_step = step * self.stride
+
+        #  TODO stepped getitem is probably wrong, see setitem for correct.
+        value_step = step * count
+
+        # ctypes does not support stepped slicing, so do the work in a list
+        # and copy it back.
+        data = self.region.array[:]
+        value = [0] * ((stop - start) // step)
+        stride = self.stride
+        for i in range(count):
+            value[i::value_step] = \
+                data[data_start + i:data_stop + i:data_step]
+        return value
+
+    def __setitem__(self, index, value):
+        count = self.count
+        if not isinstance(index, slice):
+            elem = index // count
+            j = index % count
+            self.region.array[elem * self.stride + j] = value
+            return
+
+        start = index.start or 0
+        stop = index.stop
+        step = index.step or 1
+        if start < 0:
+            start = self.size + start
+        if stop is None:
+            stop = self.size
+        elif stop < 0:
+            stop = self.size + stop
+
+        assert step == 1 or step % count == 0, \
+            'Step must be multiple of component count'
+
+        data_start = (start // count) * self.stride + start % count
+        data_stop = (stop // count) * self.stride + stop % count
+
+        # ctypes does not support stepped slicing, so do the work in a list
+        # and copy it back.
+        data = self.region.array[:]
+        if step == 1:
+            data_step = self.stride
+            value_step = count
+            for i in range(count):
+                data[data_start + i:data_stop + i:data_step] = \
+                    value[i::value_step]
+        else:
+            data_step = (step // count) * self.stride
+            data[data_start:data_stop:data_step] = value
+        self.region.array[:] = data
+
+    def invalidate(self):
+        self.region.invalidate()
+
+# ----------------------------------------------------------------------------
+# pyglet
+# Copyright (c) 2006-2008 Alex Holkner
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions 
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#  * Neither the name of pyglet nor the names of its
+#    contributors may be used to endorse or promote products
+#    derived from this software without specific prior written
+#    permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# $Id:$
+
+'''Manage related vertex attributes within a single vertex domain.
+
+A vertex "domain" consists of a set of attribute descriptions that together
+describe the layout of one or more vertex buffers which are used together to
+specify the vertices in a primitive.  Additionally, the domain manages the
+buffers used to store the data and will resize them as necessary to accomodate
+new vertices.
+
+Domains can optionally be indexed, in which case they also manage a buffer
+containing vertex indices.  This buffer is grown separately and has no size
+relation to the attribute buffers.
+
+Applications can create vertices (and optionally, indices) within a domain
+with the `VertexDomain.create` method.  This returns a `VertexList`
+representing the list of vertices created.  The vertex attribute data within
+the group can be modified, and the changes will be made to the underlying
+buffers automatically.
+
+The entire domain can be efficiently drawn in one step with the
+`VertexDomain.draw` method, assuming all the vertices comprise primitives of
+the same OpenGL primitive mode.
+'''
+
+__docformat__ = 'restructuredtext'
+__version__ = '$Id: $'
+
+
+_usage_format_re = re.compile(r'''
+    (?P<attribute>[^/]*)
+    (/ (?P<usage> static|dynamic|stream|none))?
+''', re.VERBOSE)
+
+_gl_usages = {
+    'static': GL_STATIC_DRAW,
+    'dynamic': GL_DYNAMIC_DRAW,
+    'stream': GL_STREAM_DRAW,
+    'none': GL_STREAM_DRAW_ARB, # Force no VBO
+}
+
+def _nearest_pow2(v):
+    # From http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+    # Credit: Sean Anderson
+    v -= 1
+    v |= v >> 1
+    v |= v >> 2
+    v |= v >> 4
+    v |= v >> 8
+    v |= v >> 16
+    return v + 1
+
+def create_attribute_usage(format):
+    '''Create an attribute and usage pair from a format string.  The
+    format string is as documented in `pyglet.graphics.vertexattribute`, with
+    the addition of an optional usage component::
+
+        usage ::= attribute ( '/' ('static' | 'dynamic' | 'stream' | 'none') )?
+
+    If the usage is not given it defaults to 'dynamic'.  The usage corresponds
+    to the OpenGL VBO usage hint, and for ``static`` also indicates a
+    preference for interleaved arrays.  If ``none`` is specified a buffer
+    object is not created, and vertex data is stored in system memory.
+    
+    Some examples:
+
+    ``v3f/stream``
+        3D vertex position using floats, for stream usage
+    ``c4b/static``
+        4-byte color attribute, for static usage
+
+    :return: attribute, usage  
+    '''
+    match = _usage_format_re.match(format)
+    attribute_format = match.group('attribute')
+    attribute = create_attribute(attribute_format)
+    usage = match.group('usage')
+    if usage:
+        vbo = not usage == 'none'
+        usage = _gl_usages[usage]
+    else:
+        usage = GL_DYNAMIC_DRAW
+        vbo = True
+
+    return (attribute, usage, vbo)
+
+def create_domain(*attribute_usage_formats):
+    '''Create a vertex domain covering the given attribute usage formats.
+    See documentation for `create_attribute_usage` and 
+    `pyglet.graphics.vertexattribute.create_attribute` for the grammar of
+    these format strings.
+
+    :rtype: `VertexDomain`
+    '''
+    attribute_usages = [create_attribute_usage(f) \
+                        for f in attribute_usage_formats]
+    return VertexDomain(attribute_usages)
+
+def create_indexed_domain(*attribute_usage_formats):
+    '''Create an indexed vertex domain covering the given attribute usage
+    formats.  See documentation for `create_attribute_usage` and
+    `pyglet.graphics.vertexattribute.create_attribute` for the grammar of
+    these format strings.
+
+    :rtype: `VertexDomain`
+    '''
+    attribute_usages = [create_attribute_usage(f) \
+                        for f in attribute_usage_formats]
+    return IndexedVertexDomain(attribute_usages)
+
+class VertexDomain(object):
+    '''Management of a set of vertex lists.
+
+    Construction of a vertex domain is usually done with the `create_domain`
+    function.
+    '''
+    _version = 0
+    _initial_count = 16
+
+    def __init__(self, attribute_usages):
+        self.allocator = Allocator(self._initial_count)
+
+        static_attributes = []
+        attributes = []
+        self.buffer_attributes = []   # list of (buffer, attributes)
+        for attribute, usage, vbo in attribute_usages:
+            if usage == GL_STATIC_DRAW:
+                # Group attributes for interleaved buffer
+                static_attributes.append(attribute)
+                attributes.append(attribute)
+            else:
+                # Create non-interleaved buffer
+                attributes.append(attribute)
+                attribute.buffer = create_mappable_buffer(
+                    attribute.stride * self.allocator.capacity, 
+                    usage=usage, vbo=vbo)
+                attribute.buffer.element_size = attribute.stride
+                attribute.buffer.attributes = (attribute,)
+                self.buffer_attributes.append(
+                    (attribute.buffer, (attribute,)))
+
+        # Create buffer for interleaved data
+        if static_attributes:
+            vertexattribute.interleave_attributes(static_attributes)
+            stride = static_attributes[0].stride
+            buffer = vertexbuffer.create_mappable_buffer(
+                stride * self.allocator.capacity, usage=GL_STATIC_DRAW)
+            buffer.element_size = stride
+            self.buffer_attributes.append(
+                (buffer, static_attributes))
+
+            for attribute in static_attributes:
+                attribute.buffer = buffer
+
+        # Create named attributes for each attribute
+        self.attributes = attributes
+        self.attribute_names = {}
+        for attribute in attributes:
+            if isinstance(attribute, GenericAttribute):
+                index = attribute.index
+                if 'generic' not in self.attributes:
+                    self.attribute_names['generic'] = {}
+                assert index not in self.attribute_names['generic'], \
+                    'More than one generic attribute with index %d' % index
+                self.attribute_names['generic'][index] = attribute
+            else:
+                name = attribute.plural
+                assert name not in self.attributes, \
+                    'More than one "%s" attribute given' % name
+                self.attribute_names[name] = attribute
+
+    def __del__(self):
+        # Break circular refs that Python GC seems to miss even when forced
+        # collection.
+        for attribute in self.attributes:
+            del attribute.buffer
+
+    def _safe_alloc(self, count):
+        '''Allocate vertices, resizing the buffers if necessary.'''
+        try:
+            return self.allocator.alloc(count)
+        except AllocatorMemoryException, e:
+            capacity = _nearest_pow2(e.requested_capacity)
+            self._version += 1
+            for buffer, _ in self.buffer_attributes:
+                buffer.resize(capacity * buffer.element_size)
+            self.allocator.set_capacity(capacity)
+            return self.allocator.alloc(count)
+
+    def _safe_realloc(self, start, count, new_count):
+        '''Reallocate vertices, resizing the buffers if necessary.'''
+        try:
+            return self.allocator.realloc(start, count, new_count)
+        except AllocatorMemoryException, e:
+            capacity = _nearest_pow2(e.requested_capacity)
+            self._version += 1
+            for buffer, _ in self.buffer_attributes:
+                buffer.resize(capacity * buffer.element_size)
+            self.allocator.set_capacity(capacity)
+            return self.allocator.realloc(start, count, new_count) 
+
+    def create(self, count):
+        '''Create a `VertexList` in this domain.
+
+        :Parameters:
+            `count` : int
+                Number of vertices to create.
+
+        :rtype: `VertexList`
+        '''
+        start = self._safe_alloc(count)
+        return VertexList(self, start, count)
+
+    def draw(self, mode, vertex_list=None):
+        '''Draw vertices in the domain.
+        
+        If `vertex_list` is not specified, all vertices in the domain are
+        drawn.  This is the most efficient way to render primitives.
+
+        If `vertex_list` specifies a `VertexList`, only primitives in that
+        list will be drawn.
+
+        :Parameters:
+            `mode` : int
+                OpenGL drawing mode, e.g. ``GL_POINTS``, ``GL_LINES``, etc.
+            `vertex_list` : `VertexList`
+                Vertex list to draw, or ``None`` for all lists in this domain.
+
+        '''
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        for buffer, attributes in self.buffer_attributes:
+            buffer.bind()
+            for attribute in attributes:
+                attribute.enable()
+                attribute.set_pointer(attribute.buffer.ptr)
+        if _workaround_vbo_finish:
+            glFinish()
+
+        if vertex_list is not None:
+            glDrawArrays(mode, vertex_list.start, vertex_list.count)
+        else:
+            starts, sizes = self.allocator.get_allocated_regions()
+            primcount = len(starts)
+            if primcount == 0:
+                pass
+            elif primcount == 1:
+                # Common case
+                glDrawArrays(mode, starts[0], sizes[0])
+            elif gl_info.have_version(1, 4):
+                starts = (GLint * primcount)(*starts)
+                sizes = (GLsizei * primcount)(*sizes)
+                glMultiDrawArrays(mode, starts, sizes, primcount)
+            else:
+                for start, size in zip(starts, sizes):
+                    glDrawArrays(mode, start, size)
+        
+        for buffer, _ in self.buffer_attributes:
+            buffer.unbind()
+        glPopClientAttrib()
+
+    def _is_empty(self):
+        return not self.allocator.starts
+
+    def __repr__(self):
+        return '<%s@%x %s>' % (self.__class__.__name__, id(self), 
+                               self.allocator)
+
+class VertexList(object):
+    '''A list of vertices within a `VertexDomain`.  Use
+    `VertexDomain.create` to construct this list.
+    '''
+    
+    def __init__(self, domain, start, count):
+        # TODO make private
+        self.domain = domain
+        self.start = start
+        self.count = count
+    
+    def get_size(self):
+        '''Get the number of vertices in the list.
+
+        :rtype: int
+        '''
+        return self.count
+
+    def get_domain(self):
+        '''Get the domain this vertex list belongs to.
+
+        :rtype: `VertexDomain`
+        '''
+        return self.domain
+
+    def draw(self, mode):
+        '''Draw this vertex list in the given OpenGL mode.
+
+        :Parameters:
+            `mode` : int
+                OpenGL drawing mode, e.g. ``GL_POINTS``, ``GL_LINES``, etc.
+
+        '''
+        self.domain.draw(mode, self)
+    
+    def resize(self, count):
+        '''Resize this group.
+        
+        :Parameters:
+            `count` : int
+                New number of vertices in the list. 
+
+        '''
+        new_start = self.domain._safe_realloc(self.start, self.count, count)
+        if new_start != self.start:
+            # Copy contents to new location
+            for attribute in self.domain.attributes:
+                old = attribute.get_region(attribute.buffer, 
+                                           self.start, self.count)
+                new = attribute.get_region(attribute.buffer, 
+                                           new_start, self.count)
+                new.array[:] = old.array[:]
+                new.invalidate()
+        self.start = new_start
+        self.count = count
+
+        self._colors_cache_version = None
+        self._fog_coords_cache_version = None
+        self._edge_flags_cache_version = None
+        self._normals_cache_version = None
+        self._secondary_colors_cache_version = None
+        self._tex_coords_cache_version = None
+        self._vertices_cache_version = None
+
+    def delete(self):
+        '''Delete this group.'''
+        self.domain.allocator.dealloc(self.start, self.count)
+
+    def migrate(self, domain):
+        '''Move this group from its current domain and add to the specified
+        one.  Attributes on domains must match.  (In practice, used to change
+        parent state of some vertices).
+        
+        :Parameters:
+            `domain` : `VertexDomain`
+                Domain to migrate this vertex list to.
+
+        '''
+        assert domain.attribute_names.keys() == \
+            self.domain.attribute_names.keys(), 'Domain attributes must match.'
+
+        new_start = domain._safe_alloc(self.count)
+        for key, old_attribute in self.domain.attribute_names.items():
+            old = old_attribute.get_region(old_attribute.buffer,
+                                           self.start, self.count)
+            new_attribute = domain.attribute_names[key]
+            new = new_attribute.get_region(new_attribute.buffer,
+                                           new_start, self.count)
+            new.array[:] = old.array[:]
+            new.invalidate()
+
+        self.domain.allocator.dealloc(self.start, self.count)
+        self.domain = domain
+        self.start = new_start
+        
+        self._colors_cache_version = None
+        self._fog_coords_cache_version = None
+        self._edge_flags_cache_version = None
+        self._normals_cache_version = None
+        self._secondary_colors_cache_version = None
+        self._tex_coords_cache_version = None
+        self._vertices_cache_version = None
+
+    def _set_attribute_data(self, i, data):
+        attribute = self.domain.attributes[i]
+        # TODO without region
+        region = attribute.get_region(attribute.buffer, self.start, self.count)
+        region.array[:] = data
+        region.invalidate()
+
+    # ---
+
+    def _get_colors(self):
+        if (self._colors_cache_version != self.domain._version):
+            domain = self.domain
+            attribute = domain.attribute_names['colors']
+            self._colors_cache = attribute.get_region(
+                attribute.buffer, self.start, self.count)
+            self._colors_cache_version = domain._version
+
+        region = self._colors_cache
+        region.invalidate()
+        return region.array
+
+    def _set_colors(self, data):
+        self._get_colors()[:] = data
+
+    _colors_cache = None
+    _colors_cache_version = None
+    colors = property(_get_colors, _set_colors, 
+                      doc='''Array of color data.''')
+
+    # ---
+
+    def _get_fog_coords(self):
+        if (self._fog_coords_cache_version != self.domain._version):
+            domain = self.domain
+            attribute = domain.attribute_names['fog_coords']
+            self._fog_coords_cache = attribute.get_region(
+                attribute.buffer, self.start, self.count)
+            self._fog_coords_cache_version = domain._version
+
+        region = self._fog_coords_cache
+        region.invalidate()
+        return region.array
+
+    def _set_fog_coords(self, data):
+        self._get_fog_coords()[:] = data
+
+    _fog_coords_cache = None
+    _fog_coords_cache_version = None
+    fog_coords = property(_get_fog_coords, _set_fog_coords,
+                          doc='''Array of fog coordinate data.''')
+
+    # ---
+
+    def _get_edge_flags(self):
+        if (self._edge_flags_cache_version != self.domain._version):
+            domain = self.domain
+            attribute = domain.attribute_names['edge_flags']
+            self._edge_flags_cache = attribute.get_region(
+                attribute.buffer, self.start, self.count)
+            self._edge_flags_cache_version = domain._version
+
+        region = self._edge_flags_cache
+        region.invalidate()
+        return region.array
+
+    def _set_edge_flags(self, data):
+        self._get_edge_flags()[:] = data
+
+    _edge_flags_cache = None
+    _edge_flags_cache_version = None
+    edge_flags = property(_get_edge_flags, _set_edge_flags,
+                          doc='''Array of edge flag data.''')
+
+    # ---
+
+    def _get_normals(self):
+        if (self._normals_cache_version != self.domain._version):
+            domain = self.domain
+            attribute = domain.attribute_names['normals']
+            self._normals_cache = attribute.get_region(
+                attribute.buffer, self.start, self.count)
+            self._normals_cache_version = domain._version
+
+        region = self._normals_cache
+        region.invalidate()
+        return region.array
+
+    def _set_normals(self, data):
+        self._get_normals()[:] = data
+
+    _normals_cache = None
+    _normals_cache_version = None
+    normals = property(_get_normals, _set_normals,
+                       doc='''Array of normal vector data.''')
+
+    # ---
+
+    def _get_secondary_colors(self):
+        if (self._secondary_colors_cache_version != self.domain._version):
+            domain = self.domain
+            attribute = domain.attribute_names['secondary_colors']
+            self._secondary_colors_cache = attribute.get_region(
+                attribute.buffer, self.start, self.count)
+            self._secondary_colors_cache_version = domain._version
+
+        region = self._secondary_colors_cache
+        region.invalidate()
+        return region.array
+
+    def _set_secondary_colors(self, data):
+        self._get_secondary_colors()[:] = data
+
+    _secondary_colors_cache = None
+    _secondary_colors_cache_version = None
+    secondary_colors = property(_get_secondary_colors, _set_secondary_colors,
+                                doc='''Array of secondary color data.''')
+
+    # ---
+
+    _tex_coords_cache = None
+    _tex_coords_cache_version = None
+
+    def _get_tex_coords(self):
+        if (self._tex_coords_cache_version != self.domain._version):
+            domain = self.domain
+            attribute = domain.attribute_names['tex_coords']
+            self._tex_coords_cache = attribute.get_region(
+                attribute.buffer, self.start, self.count)
+            self._tex_coords_cache_version = domain._version
+
+        region = self._tex_coords_cache
+        region.invalidate()
+        return region.array
+
+    def _set_tex_coords(self, data):
+        self._get_tex_coords()[:] = data
+
+    tex_coords = property(_get_tex_coords, _set_tex_coords,
+                          doc='''Array of texture coordinate data.''')
+
+    # ---
+    
+    _vertices_cache = None
+    _vertices_cache_version = None
+
+    def _get_vertices(self):
+        if (self._vertices_cache_version != self.domain._version):
+            domain = self.domain
+            attribute = domain.attribute_names['vertices']
+            self._vertices_cache = attribute.get_region(
+                attribute.buffer, self.start, self.count)
+            self._vertices_cache_version = domain._version
+
+        region = self._vertices_cache
+        region.invalidate()
+        return region.array
+
+    def _set_vertices(self, data):
+        self._get_vertices()[:] = data
+    
+    vertices = property(_get_vertices, _set_vertices,
+                        doc='''Array of vertex coordinate data.''')
+
+class IndexedVertexDomain(VertexDomain):
+    '''Management of a set of indexed vertex lists.
+
+    Construction of an indexed vertex domain is usually done with the
+    `create_indexed_domain` function.
+    '''
+    _initial_index_count = 16
+
+    def __init__(self, attribute_usages, index_gl_type=GL_UNSIGNED_INT):
+        super(IndexedVertexDomain, self).__init__(attribute_usages)
+
+        self.index_allocator = allocation.Allocator(self._initial_index_count)
+        
+        self.index_gl_type = index_gl_type
+        self.index_c_type = vertexattribute._c_types[index_gl_type]
+        self.index_element_size = ctypes.sizeof(self.index_c_type)
+        self.index_buffer = vertexbuffer.create_mappable_buffer(
+            self.index_allocator.capacity * self.index_element_size, 
+            target=GL_ELEMENT_ARRAY_BUFFER)
+
+    def _safe_index_alloc(self, count):
+        '''Allocate indices, resizing the buffers if necessary.'''
+        try:
+            return self.index_allocator.alloc(count)
+        except allocation.AllocatorMemoryException, e:
+            capacity = _nearest_pow2(e.requested_capacity)
+            self._version += 1
+            self.index_buffer.resize(capacity * self.index_element_size)
+            self.index_allocator.set_capacity(capacity)
+            return self.index_allocator.alloc(count)
+
+    def _safe_index_realloc(self, start, count, new_count):
+        '''Reallocate indices, resizing the buffers if necessary.'''
+        try:
+            return self.index_allocator.realloc(start, count, new_count)
+        except allocation.AllocatorMemoryException, e:
+            capacity = _nearest_pow2(e.requested_capacity)
+            self._version += 1
+            self.index_buffer.resize(capacity * self.index_element_size)
+            self.index_allocator.set_capacity(capacity)
+            return self.index_allocator.realloc(start, count, new_count)
+
+    def create(self, count, index_count):
+        '''Create an `IndexedVertexList` in this domain.
+
+        :Parameters:
+            `count` : int
+                Number of vertices to create
+            `index_count`
+                Number of indices to create
+
+        '''
+        start = self._safe_alloc(count)
+        index_start = self._safe_index_alloc(index_count)
+        return IndexedVertexList(self, start, count, index_start, index_count) 
+
+    def get_index_region(self, start, count):
+        '''Get a region of the index buffer.
+
+        :Parameters:
+            `start` : int
+                Start of the region to map.
+            `count` : int
+                Number of indices to map.
+
+        :rtype: Array of int
+        '''
+        byte_start = self.index_element_size * start
+        byte_count = self.index_element_size * count
+        ptr_type = ctypes.POINTER(self.index_c_type * count)
+        return self.index_buffer.get_region(byte_start, byte_count, ptr_type)
+
+    def draw(self, mode, vertex_list=None):
+        '''Draw vertices in the domain.
+        
+        If `vertex_list` is not specified, all vertices in the domain are
+        drawn.  This is the most efficient way to render primitives.
+
+        If `vertex_list` specifies a `VertexList`, only primitives in that
+        list will be drawn.
+
+        :Parameters:
+            `mode` : int
+                OpenGL drawing mode, e.g. ``GL_POINTS``, ``GL_LINES``, etc.
+            `vertex_list` : `IndexedVertexList`
+                Vertex list to draw, or ``None`` for all lists in this domain.
+
+        '''
+        glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT)
+        for buffer, attributes in self.buffer_attributes:
+            buffer.bind()
+            for attribute in attributes:
+                attribute.enable()
+                attribute.set_pointer(attribute.buffer.ptr)
+        self.index_buffer.bind()
+        if vertexbuffer._workaround_vbo_finish:
+            glFinish()
+
+        if vertex_list is not None:
+            glDrawElements(mode, vertex_list.index_count, self.index_gl_type,
+                self.index_buffer.ptr + 
+                    vertex_list.index_start * self.index_element_size)
+        else:
+            starts, sizes = self.index_allocator.get_allocated_regions()
+            primcount = len(starts)
+            if primcount == 0:
+                pass
+            elif primcount == 1:
+                # Common case
+                glDrawElements(mode, sizes[0], self.index_gl_type,
+                    self.index_buffer.ptr + starts[0])
+            elif gl_info.have_version(1, 4):
+                if not isinstance(self.index_buffer, 
+                                  vertexbuffer.VertexBufferObject):
+                    starts = [s + self.index_buffer.ptr for s in starts]
+                starts = (GLuint * primcount)(*starts)
+                sizes = (GLsizei * primcount)(*sizes)
+                glMultiDrawElements(mode, sizes, self.index_gl_type, starts,
+                                    primcount)
+            else:
+                for start, size in zip(starts, sizes):
+                    glDrawElements(mode, size, self.index_gl_type,
+                        self.index_buffer.ptr + 
+                            start * self.index_element_size)
+        
+        self.index_buffer.unbind()
+        for buffer, _ in self.buffer_attributes:
+            buffer.unbind()
+        glPopClientAttrib()
+
+class IndexedVertexList(VertexList):
+    '''A list of vertices within an `IndexedVertexDomain` that are indexed.
+    Use `IndexedVertexDomain.create` to construct this list.
+    '''
+    def __init__(self, domain, start, count, index_start, index_count):
+        super(IndexedVertexList, self).__init__(domain, start, count)
+
+        self.index_start = index_start
+        self.index_count = index_count
+
+    def draw(self, mode):
+        self.domain.draw(mode, self)
+
+    def resize(self, count, index_count):
+        '''Resize this group.
+
+        :Parameters:
+            `count` : int
+                New number of vertices in the list. 
+            `index_count` : int
+                New number of indices in the list. 
+
+        '''
+        old_start = self.start
+        super(IndexedVertexList, self).resize(count)
+
+        # Change indices (because vertices moved)
+        if old_start != self.start:
+            diff = self.start - old_start
+            self.indices[:] = map(lambda i: i + diff, self.indices)
+        
+        # Resize indices
+        new_start = self.domain._safe_index_realloc(
+            self.index_start, self.index_count, index_count)
+        if new_start != self.index_start:
+            old = self.domain.get_index_region(
+                self.index_start, self.index_count)
+            new = self.domain.get_index_region(
+                self.index_start, self.index_count)
+            new.array[:] = old.array[:]
+            new.invalidate()
+        self.index_start = new_start
+        self.index_count = index_count
+        self._indices_cache_version = None
+
+    def delete(self):
+        '''Delete this group.'''
+        super(IndexedVertexList, self).delete()
+        self.domain.index_allocator.dealloc(self.index_start, self.index_count)
+
+    def _set_index_data(self, data):
+        # TODO without region
+        region = self.domain.get_index_region(
+            self.index_start, self.index_count)
+        region.array[:] = data
+        region.invalidate()
+
+    # ---
+
+    def _get_indices(self):
+        if self._indices_cache_version != self.domain._version:
+            domain = self.domain
+            self._indices_cache = domain.get_index_region(
+                self.index_start, self.index_count)
+            self._indices_cache_version = domain._version
+
+        region = self._indices_cache
+        region.invalidate()
+        return region.array
+
+    def _set_indices(self, data):
+        self._get_indices()[:] = data
+
+    _indices_cache = None
+    _indices_cache_version = None
+    indices = property(_get_indices, _set_indices, 
+                       doc='''Array of index data.''')
+

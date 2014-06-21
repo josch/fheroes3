@@ -131,7 +131,9 @@ class MapView(object):
     def draw(self):
         pyglet.gl.glTranslatef(self.view_x+IF_LEFT, self.view_y+IF_BOTTOM, 0)
         pyglet.gl.glScalef(self.tile_size/32.0, self.tile_size/32.0, 0.0)
+        pyglet.gl.glEnable(pyglet.gl.GL_TEXTURE_2D)
         self.batch.draw()
+        pyglet.gl.glDisable(pyglet.gl.GL_TEXTURE_2D)
     
     def _move(self, dx, dy):
         # new map position

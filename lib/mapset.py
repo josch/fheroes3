@@ -23,27 +23,24 @@ from lib import h3m
 import os
 
 class OrderedTextureGroup(pyglet.graphics.Group):
-    def __init__(self, order, texture, parent=None):
-        super(OrderedTextureGroup, self).__init__(parent)
+    def __init__(self, order, texture):
+        super(OrderedTextureGroup, self).__init__()
         self.texture = texture
         self.order = order
 
     def set_state(self):
-        pyglet.gl.glEnable(self.texture.target)
-        pyglet.gl.glBindTexture(self.texture.target, self.texture.id)
-
+        pyglet.gl.glBindTexture(pyglet.gl.GL_TEXTURE_2D, self.texture.id)
+    
     def unset_state(self):
-        pyglet.gl.glDisable(self.texture.target)
+        pass
 
     def __hash__(self):
-        return hash((self.order, self.texture.target, self.texture.id, self.parent))
+        return hash((self.order, self.texture.id))
 
     def __eq__(self, other):
         return (self.__class__ is other.__class__ and
             self.order == other.order and
-            self.texture.target == other.texture.target and
-            self.texture.id == other.texture.id and
-            self.parent == self.parent)
+            self.texture.id == other.texture.id)
 
     def __repr__(self):
         return '%s(order=%d, id=%d)' % (self.__class__.__name__, self.order, self.texture.id)
@@ -93,7 +90,7 @@ class Animation(object):
 
 class Animation_Object(object):
     def __init__(self, animation, group=None):
-        if group:
+        if group != None:
             self.texgroup = group
         else:
             self.texgroup = animation.texgroup
@@ -179,7 +176,7 @@ class MapSet(object):
             for x, tile in enumerate(line):
                 if tile[0] == -1: #edge
                     if "edg" not in list(tile_textures.keys()):
-                        tile_textures["edg"] = [self.load_map_object('data/advmap_tiles/edg.def/%d.png'%i, 1000) for i in range(36)]
+                        tile_textures["edg"] = [self.load_map_object('data/advmap_tiles/edg.def/%d.png'%i, 100) for i in range(36)]
                     self.__tiles[x,y] = [tile_textures["edg"][tile[1]]]
                 elif tile[0] == 0: #dirt
                     if "dirttl" not in list(tile_textures.keys()):
